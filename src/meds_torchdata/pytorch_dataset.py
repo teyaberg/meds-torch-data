@@ -7,7 +7,7 @@ import polars as pl
 import torch
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
-from .config import MEDSTorchDataConfig, SubsequenceSamplingStrategy
+from .config import MEDSTorchBatch, MEDSTorchDataConfig, SubsequenceSamplingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -44,110 +44,6 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
     Examples:
     """
-
-    @staticmethod
-    def subsample_subject_data(
-        subject_data: JointNestedRaggedTensorDict,
-        max_seq_len: int,
-        sampling_strategy: SubsequenceSamplingStrategy,
-        do_flatten_tensors: bool = True,
-        global_st: int = 0,
-    ) -> tuple[JointNestedRaggedTensorDict, int, int]:
-        """Subsample subject data based on maximum sequence length and sampling strategy.
-
-        This function handles subsampling for both flattened and nested tensor structures.
-
-        Args:
-            subject_data: Input tensor dictionary containing the sequence data
-            max_seq_len: Maximum allowed sequence length
-            sampling_strategy: Strategy for selecting subsequence (RANDOM, TO_END, FROM_START)
-            do_flatten_tensors: Whether to flatten tensors before subsampling
-            global_st: Starting index offset for maintaining global indexing
-
-        Returns:
-            tuple containing:
-            - Subsampled tensor dictionary
-            - New global start index
-            - New global end index
-
-        Examples:
-            >>> import numpy as np
-            >>> np.random.seed(42)
-            >>> # Create sample nested data
-            >>> tensors = {
-            ...     "code": [[1,2],[3,4],[5,6],[7,8,9,10],[11,12]],
-            ...     "time": [0,1,2,3,4],
-            ... }
-            >>> data = JointNestedRaggedTensorDict(raw_tensors=tensors)
-            >>> # Test FROM_START strategy without flattening
-            >>> subsampled, st, end = MEDSPytorchDataset.subsample_subject_data(
-            ...     data, max_seq_len=2,
-            ...     sampling_strategy=SubsequenceSamplingStrategy.FROM_START,
-            ...     do_flatten_tensors=False
-            ... )
-            >>> subsampled.tensors["dim1/code"].tolist()
-            [1, 2, 3, 4]
-            >>> subsampled.tensors["dim0/time"].tolist()
-            [0, 1]
-            >>> st, end
-            (0, 2)
-
-            >>> # Test TO_END strategy with flattening
-            >>> data = JointNestedRaggedTensorDict(raw_tensors=tensors)
-            >>> subsampled, st, end = MEDSPytorchDataset.subsample_subject_data(
-            ...     data, max_seq_len=4,
-            ...     sampling_strategy=SubsequenceSamplingStrategy.TO_END,
-            ...     do_flatten_tensors=True
-            ... )
-            >>> subsampled.tensors["dim0/code"].tolist()
-            [9, 10, 11, 12]
-            >>> subsampled.tensors["dim0/time"].tolist()
-            [0, 0, 4, 0]
-            >>> st, end
-            (3, 5)
-
-            >>> # Test TO_END strategy
-            >>> data = JointNestedRaggedTensorDict(raw_tensors=tensors)
-            >>> subsampled, st, end = MEDSPytorchDataset.subsample_subject_data(
-            ...     data, max_seq_len=2,
-            ...     sampling_strategy=SubsequenceSamplingStrategy.TO_END,
-            ...     do_flatten_tensors=False,
-            ... )
-            >>> st, end
-            (3, 5)
-
-            >>> # Test RANDOM strategy
-            >>> data = JointNestedRaggedTensorDict(raw_tensors=tensors)
-            >>> subsampled, st, end = MEDSPytorchDataset.subsample_subject_data(
-            ...     data, max_seq_len=2,
-            ...     sampling_strategy=SubsequenceSamplingStrategy.RANDOM,
-            ...     do_flatten_tensors=True,
-            ... )
-            >>> len(subsampled.tensors["dim0/code"]) == 2
-            True
-        """
-        if do_flatten_tensors:
-            # Store original lengths for each time step before flattening
-            cum_lens = subject_data.tensors["dim1/bounds"]
-            subject_data = subject_data.flatten()
-
-        seq_len = len(subject_data)
-        st_offset = SubsequenceSamplingStrategy.subsample_st_offset(sampling_strategy, seq_len, max_seq_len)
-        if st_offset is None:
-            return subject_data, global_st, global_st + seq_len
-
-        end = min(seq_len, st_offset + max_seq_len)
-        subject_data = subject_data[st_offset:end]
-
-        if do_flatten_tensors:
-            # Map flattened indices back to original time indices
-            new_global_st = global_st + np.searchsorted(cum_lens, st_offset, side="right").item()
-            new_global_end = global_st + np.searchsorted(cum_lens, end, side="right").item()
-        else:
-            new_global_st = global_st + st_offset
-            new_global_end = new_global_st + len(subject_data)
-
-        return subject_data, new_global_st, new_global_end
 
     @staticmethod
     def get_task_indices_and_labels(
@@ -361,8 +257,6 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         Returns:
             A `JointNestedRaggedTensorDict` object containing the dynamic data for the permissible range for
             the given subject.
-
-        Examples:
         """
         shard = self.subj_map[subject_id]
         subject_idx = self.subj_indices[subject_id]
@@ -410,13 +304,31 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
             max_seq_len -= n_static
 
-        subject_dynamic_data, global_st, global_end = MEDSPytorchDataset.subsample_subject_data(
-            subject_dynamic_data,
-            max_seq_len,
-            self.config.subsequence_sampling_strategy,
-            self.config.do_flatten_tensors,
-            global_st,
+        if self.config.do_flatten_tensors:
+            # Store original lengths for each time step before flattening
+            cum_lens = subject_dynamic_data.tensors["dim1/bounds"]
+            subject_dynamic_data = subject_dynamic_data.flatten()
+
+        seq_len = len(subject_dynamic_data)
+        st_offset = SubsequenceSamplingStrategy.subsample_st_offset(
+            self.config.subsequence_sampling_strategy, seq_len, max_seq_len
         )
+        if st_offset is None:
+            return subject_dynamic_data, global_st, global_st + seq_len
+
+        end = min(seq_len, st_offset + max_seq_len)
+        subject_dynamic_data = subject_dynamic_data[st_offset:end]
+
+        if self.config.do_flatten_tensors:
+            # Map flattened indices back to original time indices
+            new_global_st = global_st + np.searchsorted(cum_lens, st_offset, side="right").item()
+            new_global_end = global_st + np.searchsorted(cum_lens, end, side="right").item()
+        else:
+            new_global_st = global_st + st_offset
+            new_global_end = new_global_st + len(subject_dynamic_data)
+
+        global_st = new_global_st
+        global_end = new_global_end
 
         if self.config.do_include_subsequence_indices:
             out["start_idx"] = global_st
@@ -452,7 +364,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         return out
 
-    def collate(self, batch: list[dict]) -> dict:
+    def collate(self, batch: list[dict]) -> MEDSTorchBatch:
         """Combines a batch of data points into a single, tensorized batch.
 
         The collated output is a fully tensorized and padded dictionary, ready for input into an

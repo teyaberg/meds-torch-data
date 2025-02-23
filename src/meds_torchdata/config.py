@@ -6,7 +6,10 @@ enumeration objects for categorical options and a general DataClass configuratio
 
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
+from typing import NotRequired, TypedDict
 
+import torch
 from numpy.random import Generator, default_rng
 
 
@@ -91,6 +94,20 @@ class SeqPaddingSide(StrEnum):
     RIGHT = "right"
 
 
+class StaticInclusionMode(StrEnum):
+    """An enumeration of the possible vehicles to include static measurements.
+
+    Attributes:
+        INCLUDE: Include the static measurements as a separate output key in each batch.
+        OMIT: Omit the static measurements entirely.
+        PREPEND: Prepend the static measurements to the sequence of time-dependent measurements.
+    """
+
+    INCLUDE = "include"
+    OMIT = "omit"
+    PREPEND = "prepend"
+
+
 @dataclass
 class MEDSTorchDataConfig:
     """A data class for storing configuration options for building a PyTorch dataset from a MEDS dataset.
@@ -107,14 +124,14 @@ class MEDSTorchDataConfig:
 
     # Sequence lengths and padding
     max_seq_len: int
-    seq_padding_side: SeqPaddingSide
-    seq_sampling_strategy: SubsequenceSamplingStrategy
+    seq_padding_side: SeqPaddingSide = SeqPaddingSide.LEFT
+    seq_sampling_strategy: SubsequenceSamplingStrategy = SubsequenceSamplingStrategy.RANDOM
 
     # Static Data
-    do_prepend_static_data: bool
+    static_inclusion_mode: StaticInclusionMode = StaticInclusionMode.INCLUDE
 
     # Task Labels
-    task_labels_dir: str
+    task_labels_dir: str | None = None
 
     # Output Shape & Masking
     do_flatten_tensors: bool = True
@@ -126,3 +143,37 @@ class MEDSTorchDataConfig:
     do_include_start_time: bool = False
     do_include_end_time: bool = False
     do_include_prediction_time: bool = False
+
+    def __post_init__(self):
+        self.MEDS_dataset_dir = Path(self.MEDS_dataset_dir)
+
+        if self.task_labels_dir:
+            self.task_labels_dir = Path(self.task_labels_dir)
+            if not self.task_labels_dir.is_dir():
+                raise FileNotFoundError(
+                    "If specified, task_labels_dir must be a valid directory. "
+                    f"Got {str(self.task_labels_dir.resolve())}"
+                )
+
+
+class MEDSTorchBatch(TypedDict):
+    """A type hint for a batch of data from a MEDS dataset.
+
+    A dictionary containing the following keys:
+        ...
+    """
+
+    code: torch.LongTensor
+    mask: torch.BoolTensor
+    numeric_value: torch.FloatTensor
+    numeric_value_mask: torch.BoolTensor
+    time_delta: torch.FloatTensor
+
+    static_code: NotRequired[torch.LongTensor]
+    static_numeric_value: NotRequired[torch.FloatTensor]
+    static_numeric_value_mask: NotRequired[torch.BoolTensor]
+    event_mask: NotRequired[torch.BoolTensor]
+
+    subject_id: NotRequired[torch.LongTensor]
+    start_event_index: NotRequired[torch.LongTensor]
+    end_event_index: NotRequired[torch.LongTensor]

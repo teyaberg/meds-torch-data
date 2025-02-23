@@ -1,12 +1,11 @@
 """Contains configuration objects for building a PyTorch dataset from a MEDS dataset.
 
 This module contains configuration objects for building a PyTorch dataset from a MEDS dataset. These include
-enumeration objects for categorical options and a general DataClass configuration object for dataset options. 
+enumeration objects for categorical options and a general DataClass configuration object for dataset options.
 """
 
 from dataclasses import dataclass
 from enum import StrEnum
-
 
 BINARY_LABEL_COL = "boolean_value"
 
@@ -32,6 +31,7 @@ class SeqPaddingSide(StrEnum):
     LEFT = "left"
     RIGHT = "right"
 
+
 @dataclass
 class MEDSTorchDataConfig:
     """A data class for storing configuration options for building a PyTorch dataset from a MEDS dataset.
@@ -45,13 +45,6 @@ class MEDSTorchDataConfig:
 
     # MEDS Dataset Information
     MEDS_dataset_dir: str
-
-    # Include Metadata in batches
-    do_include_subject_id: bool = False
-    do_include_subsequence_indices: bool = False
-    do_include_start_time: bool = False
-    do_include_end_time: bool = False
-    do_include_prediction_time: bool = False
 
     # Sequence lengths and padding
     max_seq_len: int
@@ -67,3 +60,10 @@ class MEDSTorchDataConfig:
     # Output Shape & Masking
     do_flatten_tensors: bool = True
     do_include_event_mask: bool = True
+
+    # Include Metadata in batches
+    do_include_subject_id: bool = False
+    do_include_subsequence_indices: bool = False
+    do_include_start_time: bool = False
+    do_include_end_time: bool = False
+    do_include_prediction_time: bool = False

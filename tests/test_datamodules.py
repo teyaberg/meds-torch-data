@@ -9,9 +9,6 @@ from pathlib import Path
 import polars as pl
 import pytest
 import torch
-from omegaconf import open_dict
-from torch.utils.data import DataLoader
-
 from meds_torch.data.components.multiwindow_pytorch_dataset import (
     MultiWindowPytorchDataset,
 )
@@ -20,6 +17,9 @@ from meds_torch.data.components.random_windows_pytorch_dataset import (
     RandomWindowPytorchDataset,
 )
 from meds_torch.data.datamodule import MEDSDataModule
+from omegaconf import open_dict
+from torch.utils.data import DataLoader
+
 from tests.conftest import SUPERVISED_TASK_NAME, create_cfg
 
 

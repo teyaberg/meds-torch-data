@@ -7,9 +7,8 @@ import polars as pl
 import pytest
 from hydra import compose, initialize
 from loguru import logger
-from omegaconf import DictConfig, open_dict
-
 from meds_torch.utils.resolvers import setup_resolvers
+from omegaconf import DictConfig, open_dict
 
 from .helpers.package_available import _DO_LOG
 

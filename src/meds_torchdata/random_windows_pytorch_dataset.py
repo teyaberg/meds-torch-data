@@ -2,11 +2,10 @@ from pathlib import Path
 
 import numpy as np
 from loguru import logger
+from meds_torch.data.components.pytorch_dataset import PytorchDataset
 from mixins import SeedableMixin
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 from omegaconf import DictConfig
-
-from meds_torch.data.components.pytorch_dataset import PytorchDataset
 
 
 class RandomWindowPytorchDataset(PytorchDataset):

@@ -364,7 +364,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         return out
 
-    def collate(self, batch: list[dict]) -> MEDSTorchBatch:
+    @classmethod
+    def collate(cls, batch: list[dict]) -> MEDSTorchBatch:
         """Combines a batch of data points into a single, tensorized batch.
 
         The collated output is a fully tensorized and padded dictionary, ready for input into an
@@ -394,3 +395,14 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 else:
                     tensorized[k] = torch.Tensor([item[k] for item in batch])
         return tensorized
+
+    def get_dataloader(self, **kwargs) -> torch.utils.data.DataLoader:
+        """Constructs a PyTorch DataLoader for this dataset.
+
+        Args:
+            **kwargs: Additional arguments to pass to the DataLoader constructor.
+
+        Returns:
+            torch.utils.data.DataLoader: A DataLoader object for this dataset.
+        """
+        return torch.utils.data.DataLoader(self, collate_fn=self.collate, **kwargs)

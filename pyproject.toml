@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "setuptools-scm>=8.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "meds-torch-data"
+name = "meds_torchdata"
 dynamic = ["version"]
 authors = [
   {name="Matthew McDermott", email="mattmcdermott8@gmail.com"},
@@ -21,7 +21,7 @@ classifiers = [
 ]
 dependencies = [
     "polars", "nested_ragged_tensors>=0.1.0", "numpy", "ml-mixins", "torch", "MEDS_transforms>=0.1.0",
-    "hydra", "omegaconf"
+    "hydra-core", "omegaconf"
 ]
 
 [tool.setuptools_scm]
@@ -45,9 +45,9 @@ docs = [
 ]
 
 [project.scripts]
-MTD_tokenize = "meds-torchdata.preprocessing.tokenization:main"
-MTD_tensorize = "meds-torchdata.preprocessing.tensorization:main"
-MTD_preprocess = "meds-torchdata.preprocessing.__main__:main"
+MTD_tokenize = "meds_torchdata.preprocessing.tokenization:main"
+MTD_tensorize = "meds_torchdata.preprocessing.tensorization:main"
+MTD_preprocess = "meds_torchdata.preprocessing.__main__:main"
 
 [tool.pytest.ini_options]
 addopts = [

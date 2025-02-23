@@ -11,6 +11,8 @@ cohort_dir: ${oc.env:OUTPUT_DIR}
 etl_metadata.pipeline_name: "tensorization"
 
 stage_configs:
+  fit_normalization:
+    _script: "MEDS_transform-aggregate_code_metadata"
   tokenization:
     _script: "MTD_tokenize"
   tensorization:

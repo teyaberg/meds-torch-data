@@ -2,13 +2,13 @@
 
 import logging
 import os
+import subprocess
 from pathlib import Path
 
 import hydra
 from omegaconf import DictConfig
 
 from . import ETL_CFG, MAIN_CFG, RUNNER_CFG
-from .commands import run_command
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +37,22 @@ def main(cfg: DictConfig):
     if stage_runner_fp:
         command_parts.append(f"stage_runner_fp={stage_runner_fp}")
 
+    if cfg.get("do_overwrite", None) is not None:
+        command_parts.append(f"++do_overwrite={cfg.do_overwrite}")
+
     command_parts.append("'hydra.searchpath=[pkg://MEDS_transforms.configs]'")
-    run_command(command_parts, cfg)
+
+    full_cmd = " ".join(command_parts)
+    logger.info(f"Running command: {full_cmd}")
+    command_out = subprocess.run(full_cmd, shell=True, capture_output=True)
+
+    if command_out.returncode != 0:
+        logger.error(f"Command failed with return code {command_out.returncode}.")
+        logger.error(f"Command stdout:\n{command_out.stdout.decode()}")
+        logger.error(f"Command stderr:\n{command_out.stderr.decode()}")
+        raise ValueError(f"Command failed with return code {command_out.returncode}.")
+    else:
+        logger.debug(f"Command stdout:\n{command_out.stdout.decode()}")
 
 
 if __name__ == "__main__":

@@ -49,7 +49,7 @@ class SubsequenceSamplingStrategy(StrEnum):
             subsampling is required.
 
         Examples:
-            >>> SubsequenceSamplingStrategy.subsample_st_offset(SubsequenceSamplingStrategy.FROM_START, 10, 5)
+            >>> SubsequenceSamplingStrategy.subsample_st_offset("from_start", 10, 5)
             0
             >>> SubsequenceSamplingStrategy.subsample_st_offset(SubsequenceSamplingStrategy.TO_END, 10, 5)
             5
@@ -80,7 +80,12 @@ class SubsequenceSamplingStrategy(StrEnum):
 
 
 class SeqPaddingSide(StrEnum):
-    """An enumeration of the possible sequence padding sides for the dataset."""
+    """An enumeration of the possible sequence padding sides for the dataset.
+
+    Attributes:
+        LEFT: Pad the sequences on the left side (e.g., [[0, 0, 1, 2, 3], [1, 2, 3, 4, 5]]).
+        RIGHT: Pad the sequences on the right side (e.g., [[1, 2, 3, 0, 0], [1, 2, 3, 4, 5]]).
+    """
 
     LEFT = "left"
     RIGHT = "right"

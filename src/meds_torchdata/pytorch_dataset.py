@@ -129,35 +129,22 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         if do_flatten_tensors:
             # Store original lengths for each time step before flattening
             cum_lens = subject_data.tensors["dim1/bounds"]
-
             subject_data = subject_data.flatten()
-            seq_len = len(subject_data)
-            start_offset = SubsequenceSamplingStrategy.subsample_st_offset(
-                sampling_strategy, seq_len, max_seq_len
-            )
-            if start_offset is None:
-                start_offset = 0
-            end = min(seq_len, start_offset + max_seq_len)
-            subject_data = subject_data[start_offset:end]
 
+        seq_len = len(subject_data)
+        st_offset = SubsequenceSamplingStrategy.subsample_st_offset(sampling_strategy, seq_len, max_seq_len)
+        if st_offset is None:
+            return subject_data, global_st, global_st + seq_len
+
+        end = min(seq_len, st_offset + max_seq_len)
+        subject_data = subject_data[st_offset:end]
+
+        if do_flatten_tensors:
             # Map flattened indices back to original time indices
-            new_global_st = global_st + np.searchsorted(cum_lens, start_offset, side="right").item()
+            new_global_st = global_st + np.searchsorted(cum_lens, st_offset, side="right").item()
             new_global_end = global_st + np.searchsorted(cum_lens, end, side="right").item()
         else:
-            seq_len = len(subject_data)
-            if seq_len <= max_seq_len:
-                return subject_data, global_st, global_st + seq_len
-
-            start_offset = SubsequenceSamplingStrategy.subsample_st_offset(
-                sampling_strategy, seq_len, max_seq_len
-            )
-            if start_offset is None:
-                start_offset = 0
-
-            end = min(seq_len, start_offset + max_seq_len)
-            subject_data = subject_data[start_offset:end]
-
-            new_global_st = global_st + start_offset
+            new_global_st = global_st + st_offset
             new_global_end = new_global_st + len(subject_data)
 
         return subject_data, new_global_st, new_global_end

@@ -8,9 +8,8 @@ scripts.
 
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
-from tests.preprocessing import TENSORIZATION_SCRIPT
-from tests.preprocessing.test_tokenization import WANT_EVENT_SEQS as TOKENIZED_SHARDS
-from tests.preprocessing.transform_tester_base import single_stage_transform_tester
+from . import TENSORIZATION_SCRIPT, single_stage_transform_tester
+from .test_tokenization import WANT_EVENT_SEQS as TOKENIZED_SHARDS
 
 WANT_NRTS = {
     f'{k.replace("event_seqs/", "")}.nrt': JointNestedRaggedTensorDict(

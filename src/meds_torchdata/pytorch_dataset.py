@@ -15,55 +15,6 @@ logger = logging.getLogger(__name__)
 BINARY_LABEL_COL = "boolean_value"
 
 
-def subsample_st_offset(
-    strategy: SubsequenceSamplingStrategy,
-    seq_len: int,
-    max_seq_len: int,
-    rng: np.random.Generator | None = None,
-) -> int | None:
-    """Subsample starting offset based on maximum sequence length and sampling strategy.
-
-    Args:
-        strategy: Strategy for selecting subsequence (RANDOM, TO_END, FROM_START)
-        seq_len: Length of the sequence
-        max_seq_len: Maximum allowed sequence length
-        rng: Random number generator for random sampling. If None, a new generator is created.
-
-    Returns:
-        The (integral) start offset within the sequence based on the sampling strategy, or `None` if no
-        subsampling is required.
-
-    Examples:
-        >>> subsample_st_offset(SubsequenceSamplingStrategy.FROM_START, 10, 5)
-        0
-        >>> subsample_st_offset(SubsequenceSamplingStrategy.TO_END, 10, 5)
-        5
-        >>> subsample_st_offset(SubsequenceSamplingStrategy.RANDOM, 10, 5, rng=np.random.default_rng(1))
-        2
-        >>> subsample_st_offset("random", 10, 10, rng=np.random.default_rng(1)) is None
-        True
-        >>> subsample_st_offset("foo", 10, 5)
-        Traceback (most recent call last):
-            ...
-        ValueError: Invalid subsequence sampling strategy foo!
-    """
-
-    if seq_len <= max_seq_len:
-        return None
-
-    match strategy:
-        case SubsequenceSamplingStrategy.RANDOM:
-            if rng is None:
-                rng = np.random.default_rng()
-            return rng.choice(seq_len - max_seq_len)
-        case SubsequenceSamplingStrategy.TO_END:
-            return seq_len - max_seq_len
-        case SubsequenceSamplingStrategy.FROM_START:
-            return 0
-        case _:
-            raise ValueError(f"Invalid subsequence sampling strategy {strategy}!")
-
-
 class MEDSPytorchDataset(torch.utils.data.Dataset):
     """A PyTorch dataset that provides efficient PyTorch access to a MEDS dataset.
 
@@ -181,7 +132,9 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
             subject_data = subject_data.flatten()
             seq_len = len(subject_data)
-            start_offset = subsample_st_offset(sampling_strategy, seq_len, max_seq_len)
+            start_offset = SubsequenceSamplingStrategy.subsample_st_offset(
+                sampling_strategy, seq_len, max_seq_len
+            )
             if start_offset is None:
                 start_offset = 0
             end = min(seq_len, start_offset + max_seq_len)
@@ -195,7 +148,9 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             if seq_len <= max_seq_len:
                 return subject_data, global_st, global_st + seq_len
 
-            start_offset = subsample_st_offset(sampling_strategy, seq_len, max_seq_len)
+            start_offset = SubsequenceSamplingStrategy.subsample_st_offset(
+                sampling_strategy, seq_len, max_seq_len
+            )
             if start_offset is None:
                 start_offset = 0
 

@@ -7,7 +7,7 @@ enumeration objects for categorical options and a general DataClass configuratio
 from dataclasses import dataclass
 from enum import StrEnum
 
-BINARY_LABEL_COL = "boolean_value"
+from numpy.random import Generator, default_rng
 
 
 class SubsequenceSamplingStrategy(StrEnum):
@@ -18,11 +18,65 @@ class SubsequenceSamplingStrategy(StrEnum):
         TO_END: Sample a subsequence from the end of the full sequence.
             Note this starts at the last element and moves back.
         FROM_START: Sample a subsequence from the start of the full sequence.
+
+    Methods:
+        subsample_st_offset: Subsample starting offset based on maximum sequence length and sampling strategy.
+            This method can be used on instances
+            (e.g., SubsequenceSamplingStrategy.RANDOM.subsample_st_offset) but is most often used as a static
+            class level method for maximal clarity.
     """
 
     RANDOM = "random"
     TO_END = "to_end"
     FROM_START = "from_start"
+
+    def subsample_st_offset(
+        strategy,
+        seq_len: int,
+        max_seq_len: int,
+        rng: Generator | None = None,
+    ) -> int | None:
+        """Subsample starting offset based on maximum sequence length and sampling strategy.
+
+        Args:
+            strategy: Strategy for selecting subsequence (RANDOM, TO_END, FROM_START)
+            seq_len: Length of the sequence
+            max_seq_len: Maximum allowed sequence length
+            rng: Random number generator for random sampling. If None, a new generator is created.
+
+        Returns:
+            The (integral) start offset within the sequence based on the sampling strategy, or `None` if no
+            subsampling is required.
+
+        Examples:
+            >>> SubsequenceSamplingStrategy.subsample_st_offset(SubsequenceSamplingStrategy.FROM_START, 10, 5)
+            0
+            >>> SubsequenceSamplingStrategy.subsample_st_offset(SubsequenceSamplingStrategy.TO_END, 10, 5)
+            5
+            >>> SubsequenceSamplingStrategy.subsample_st_offset("random", 10, 5, rng=default_rng(1))
+            2
+            >>> SubsequenceSamplingStrategy.RANDOM.subsample_st_offset(10, 10) is None
+            True
+            >>> SubsequenceSamplingStrategy.subsample_st_offset("foo", 10, 5)
+            Traceback (most recent call last):
+                ...
+            ValueError: Invalid subsequence sampling strategy foo!
+        """
+
+        if seq_len <= max_seq_len:
+            return None
+
+        match strategy:
+            case SubsequenceSamplingStrategy.RANDOM:
+                if rng is None:
+                    rng = default_rng()
+                return rng.choice(seq_len - max_seq_len)
+            case SubsequenceSamplingStrategy.TO_END:
+                return seq_len - max_seq_len
+            case SubsequenceSamplingStrategy.FROM_START:
+                return 0
+            case _:
+                raise ValueError(f"Invalid subsequence sampling strategy {strategy}!")
 
 
 class SeqPaddingSide(StrEnum):

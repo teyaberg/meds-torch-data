@@ -120,7 +120,7 @@ class MEDSTorchDataConfig:
     """
 
     # MEDS Dataset Information
-    MEDS_dataset_dir: str
+    tensorized_cohort_dir: str
 
     # Sequence lengths and padding
     max_seq_len: int
@@ -145,7 +145,7 @@ class MEDSTorchDataConfig:
     do_include_prediction_time: bool = False
 
     def __post_init__(self):
-        self.MEDS_dataset_dir = Path(self.MEDS_dataset_dir)
+        self.tensorized_cohort_dir = Path(self.tensorized_cohort_dir)
 
         if self.task_labels_dir:
             self.task_labels_dir = Path(self.task_labels_dir)

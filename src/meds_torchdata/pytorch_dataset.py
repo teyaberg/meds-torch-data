@@ -7,7 +7,12 @@ import polars as pl
 import torch
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
-from .config import MEDSTorchBatch, MEDSTorchDataConfig, SubsequenceSamplingStrategy
+from .config import (
+    MEDSTorchBatch,
+    MEDSTorchDataConfig,
+    StaticInclusionMode,
+    SubsequenceSamplingStrategy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -114,23 +119,23 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             FileNotFoundError: If specified task files are not found.
         """
 
-        schema_root = Path(self.config.schema_files_root)
+        schema_dir = self.config.tensorized_cohort_dir / "tokenization" / "schemas"
 
         self.static_dfs = {}
         self.subj_indices = {}
         self.subj_seq_bounds = {}
         self.subj_map = {}
 
-        schema_files = list(schema_root.glob(f"{self.split}/*.parquet"))
+        schema_files = list(schema_dir.glob(f"{self.split}/*.parquet"))
         if not schema_files:
             raise FileNotFoundError(
-                f"No schema files found in {schema_root}! If your data is not sharded by split, this error "
+                f"No schema files found in {schema_dir}! If your data is not sharded by split, this error "
                 "may occur because this codebase does not handle non-split sharded data. See Issue #79 for "
                 "tracking this issue."
             )
 
         for schema_fp in schema_files:
-            shard = str(schema_fp.relative_to(schema_root).with_suffix(""))
+            shard = str(schema_fp.relative_to(schema_dir).with_suffix(""))
 
             df = (
                 pl.read_parquet(
@@ -192,11 +197,15 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
     @property
     def has_task(self) -> bool:
-        return self.config.task_name is not None
+        return self.config.task_labels_dir is not None
 
     @property
     def max_seq_len(self) -> int:
         return self.config.max_seq_len
+
+    @property
+    def static_inclusion_mode(self) -> StaticInclusionMode:
+        return self.config.static_inclusion_mode
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         """Retrieve a single data point from the dataset.
@@ -261,7 +270,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         shard = self.subj_map[subject_id]
         subject_idx = self.subj_indices[subject_id]
 
-        dynamic_data_fp = Path(self.config.data_dir) / "data" / f"{shard}.nrt"
+        dynamic_data_fp = self.config.tensorized_cohort_dir / "data" / f"{shard}.nrt"
 
         subject_dynamic_data = JointNestedRaggedTensorDict(tensors_fp=dynamic_data_fp)[subject_idx, st:end]
 
@@ -294,7 +303,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             "static_values": static_row["static_values"].item().to_list(),
         }
 
-        if self.config.do_prepend_static_data:
+        if self.static_inclusion_mode == StaticInclusionMode.PREPEND:
             n_static = len(out["static_indices"])
             if n_static >= max_seq_len:
                 raise ValueError(
@@ -311,7 +320,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         seq_len = len(subject_dynamic_data)
         st_offset = SubsequenceSamplingStrategy.subsample_st_offset(
-            self.config.subsequence_sampling_strategy, seq_len, max_seq_len
+            self.config.seq_sampling_strategy, seq_len, max_seq_len
         )
         if st_offset is None:
             return subject_dynamic_data, global_st, global_st + seq_len
@@ -336,7 +345,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         tensors = subject_dynamic_data.tensors
 
-        if self.config.do_prepend_static_data:
+        if self.static_inclusion_mode == StaticInclusionMode.PREPEND:
             tensors["dim0/time_delta_days"] = np.concatenate(
                 [np.zeros(len(out["static_indices"])), tensors["dim0/time_delta_days"]]
             )

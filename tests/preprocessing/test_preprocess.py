@@ -6,39 +6,18 @@ import tempfile
 from pathlib import Path
 
 import polars as pl
-from meds import code_metadata_filepath, subject_splits_filepath
 
-from . import (
-    MEDS_CODE_METADATA,
-    MEDS_SHARDS,
-    PREPROCESS_SCRIPT,
-    SPLITS_DF,
-    assert_df_equal,
-    check_NRT_output,
-)
+from . import PREPROCESS_SCRIPT, assert_df_equal, check_NRT_output
 from .test_tensorization import WANT_NRTS
 from .test_tokenization import WANT_SCHEMAS
 
 
-def test_preprocess():
-    with tempfile.TemporaryDirectory() as root_dir:
-        root_dir = Path(root_dir)
-
-        data_dir = root_dir / "MEDS_dataset"
-        for shard, df in MEDS_SHARDS.items():
-            fp = data_dir / f"data/{shard}.parquet"
-            fp.parent.mkdir(parents=True, exist_ok=True)
-            df.write_parquet(fp)
-
-        (data_dir / "metadata").mkdir(parents=True, exist_ok=True)
-
-        MEDS_CODE_METADATA.write_parquet(data_dir / code_metadata_filepath)
-        SPLITS_DF.write_parquet(data_dir / subject_splits_filepath)
-
-        cohort_dir = root_dir / "cohort"
+def test_preprocess(MEDS_dataset):
+    with tempfile.TemporaryDirectory() as cohort_dir:
+        cohort_dir = Path(cohort_dir)
         command = [
             str(PREPROCESS_SCRIPT),
-            f"MEDS_dataset_dir={str(data_dir)}",
+            f"MEDS_dataset_dir={str(MEDS_dataset)}",
             f"output_dir={str(cohort_dir)}",
         ]
 

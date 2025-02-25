@@ -53,6 +53,7 @@ MTD_preprocess = "meds_torchdata.preprocessing.__main__:main"
 addopts = [
   "--color=yes",
   "--doctest-modules",
+  "--ignore=docs",
 ]
 
 [project.urls]

@@ -373,8 +373,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         return out
 
-    @classmethod
-    def collate(cls, batch: list[dict]) -> MEDSTorchBatch:
+    def collate(self, batch: list[dict]) -> MEDSTorchBatch:
         """Combines a batch of data points into a single, tensorized batch.
 
         The collated output is a fully tensorized and padded dictionary, ready for input into an

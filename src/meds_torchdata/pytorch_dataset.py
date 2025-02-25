@@ -323,7 +323,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             self.config.seq_sampling_strategy, seq_len, max_seq_len
         )
         if st_offset is None:
-            return subject_dynamic_data, global_st, global_st + seq_len
+            st_offset = 0
 
         end = min(seq_len, st_offset + max_seq_len)
         subject_dynamic_data = subject_dynamic_data[st_offset:end]
@@ -366,7 +366,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         out["dynamic"] = subject_dynamic_data
 
-        if self.config.do_include_start_time_min:
+        if self.config.do_include_start_time:
             out["start_time"] = static_row["time"].item().to_list()[global_st]
         if self.config.do_include_end_time:
             out["end_time"] = static_row["time"].item().to_list()[global_end - 1]

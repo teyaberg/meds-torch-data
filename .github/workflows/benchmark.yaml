@@ -19,7 +19,6 @@ jobs:
       - name: Install packages
         run: |
           pip install -e .[tests,benchmarks]
-          pip install sample_dataset_builder/
 
       - name: Run benchmark
         run: |

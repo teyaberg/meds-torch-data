@@ -8,7 +8,7 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig
 
-from . import ETL_CFG, MAIN_CFG, RUNNER_CFG
+from . import ETL_CFG, MAIN_CFG, RESHARD_ETL_CFG, RUNNER_CFG
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,9 @@ def main(cfg: DictConfig):
     MEDS_dataset_dir = Path(cfg.MEDS_dataset_dir)
     output_dir = Path(cfg.output_dir)
     stage_runner_fp = cfg.get("stage_runner_fp", None)
+    do_reshard = cfg.get("do_reshard", False)
+
+    etl_cfg = RESHARD_ETL_CFG if do_reshard else ETL_CFG
 
     # Then we construct the rest of the command
     command_parts = [
@@ -28,7 +31,7 @@ def main(cfg: DictConfig):
         "MEDS_transform-runner",
         f"--config-path={str(RUNNER_CFG.parent.resolve())}",
         f"--config-name={RUNNER_CFG.stem}",
-        f"pipeline_config_fp={str(ETL_CFG.resolve())}",
+        f"pipeline_config_fp={str(etl_cfg.resolve())}",
     ]
     if int(os.getenv("N_WORKERS", 1)) <= 1:
         logger.info("Running in serial mode as N_WORKERS is not set.")

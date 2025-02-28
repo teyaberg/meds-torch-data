@@ -110,3 +110,10 @@ command_ for your specific use-case. Indeed, if you wish to perform additional p
 Once the data has been tensorized, you can use the `MEDSPytorchDataset` class to load the data into a PyTorch
 dataset suitable to begin modeling! This dataset class takes a configuration object as input, with the
 following fields:
+
+## Performance
+
+See https://mmcdermott.github.io/meds-torch-data/dev/bench/ for performance benchmarks for all commits in this
+repository. See [here](benchmark/run.py) for the benchmarking script. Note that these benchmarks are likely to
+change over time so should be judged relative to the content of the associated commits, not in absolute terms
+(e.g., we are likely to benchmark on more or more complex synthetic data, etc.).

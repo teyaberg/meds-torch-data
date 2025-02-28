@@ -7,16 +7,20 @@ jobs:
     name: Build distribution 📦
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: ${{ matrix.python-version }}
       - name: Install pypa/build
         run: >-
           python3 -m
-          pip install --upgrade
+          pip install
           build
           --user
       - name: Build a binary wheel and a source tarball
@@ -36,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/meds-torch # Replace <package-name> with your PyPI project name
+      url: https://pypi.org/p/meds_testing_helpers # Replace <package-name> with your PyPI project name
     permissions:
       id-token: write # IMPORTANT: mandatory for trusted publishing
 
@@ -46,10 +50,9 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
+
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          skip-existing: true
 
   github-release:
     name: >-
@@ -69,6 +72,7 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
+
       - name: Sign the dists with Sigstore
         uses: sigstore/gh-action-sigstore-python@v3.0.0
         with:

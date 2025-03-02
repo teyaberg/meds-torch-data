@@ -21,9 +21,9 @@ pip install meds-torch-data
 
 ### Step 2: Data Tensorization:
 
-:::warning
-If your dataset is not sharded by split, you need to run a reshard to split stage first!
-:::
+> [!WARNING]
+> If your dataset is not sharded by split, you need to run a reshard to split stage first! You can enable this by adding the `do_reshard=True` argument to the command below.
+
 
 ```bash
 MEDS_tensorize input_dir=... output_dir=...

@@ -117,6 +117,34 @@ class MEDSTorchDataConfig:
         seq_padding_side: The side to pad the sequences on.
         subseq_sampling_strategy: The subsequence sampling strategy for the dataset.
         subseq_len: The length of the subsequences in the dataset.
+
+    Raises:
+        FileNotFoundError: If the task_labels_dir or the tensorized_cohort_dir is not a valid directory.
+
+    Examples:
+        >>> import tempfile
+        >>> with tempfile.TemporaryDirectory() as tmpdir: # No error
+        ...     config = MEDSTorchDataConfig(
+        ...         tensorized_cohort_dir=tmpdir,
+        ...         max_seq_len=10,
+        ...     )
+        >>> with tempfile.TemporaryDirectory() as tmpdir: # Error as cohort dir doesn't exist
+        ...     config = MEDSTorchDataConfig(
+        ...         tensorized_cohort_dir=Path(tmpdir) / "non_existent",
+        ...         max_seq_len=10,
+        ...     )
+        Traceback (most recent call last):
+            ...
+        FileNotFoundError: tensorized_cohort_dir must be a valid directory. Got ...
+        >>> with tempfile.TemporaryDirectory() as tmpdir: # Error as task labels dir doesn't exist
+        ...     config = MEDSTorchDataConfig(
+        ...         tensorized_cohort_dir=tmpdir,
+        ...         max_seq_len=10,
+        ...         task_labels_dir=Path(tmpdir) / "non_existent",
+        ...     )
+        Traceback (most recent call last):
+            ...
+        FileNotFoundError: If specified, task_labels_dir must be a valid directory. Got ...
     """
 
     # MEDS Dataset Information
@@ -146,6 +174,11 @@ class MEDSTorchDataConfig:
 
     def __post_init__(self):
         self.tensorized_cohort_dir = Path(self.tensorized_cohort_dir)
+        if not self.tensorized_cohort_dir.is_dir():
+            raise FileNotFoundError(
+                "tensorized_cohort_dir must be a valid directory. "
+                f"Got {str(self.tensorized_cohort_dir.resolve())}"
+            )
 
         if self.task_labels_dir:
             self.task_labels_dir = Path(self.task_labels_dir)

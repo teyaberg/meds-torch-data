@@ -56,6 +56,9 @@ addopts = [
   "--doctest-modules",
   "--ignore=docs",
 ]
+markers = [
+  "parallelized: mark test as parallelized, requiring hydra-joblib-launcher",
+]
 
 [project.urls]
 Homepage = "https://github.com/mmcdermott/meds-torch-data"

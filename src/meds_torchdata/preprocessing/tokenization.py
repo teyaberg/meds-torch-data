@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Functions for tokenizing MEDS datasets.
 
 Here, _tokenization_ refers specifically to the process of converting a longitudinal, irregularly sampled,
@@ -299,7 +298,3 @@ def main(cfg: DictConfig):
         )
 
     logger.info(f"Done with {cfg.stage}")
-
-
-if __name__ == "__main__":  # pragma: no cover
-    main()

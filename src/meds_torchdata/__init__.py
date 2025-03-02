@@ -4,6 +4,6 @@ __package_name__ = "meds_torchdata"
 
 try:
     __version__ = version(__package_name__)
-except PackageNotFoundError:
+except PackageNotFoundError:  # pragma: no cover
     # package is not installed
     __version__ = "unknown"

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import logging
 import os
 import subprocess
@@ -56,7 +54,3 @@ def main(cfg: DictConfig):
         raise ValueError(f"Command failed with return code {command_out.returncode}.")
     else:
         logger.debug(f"Command stdout:\n{command_out.stdout.decode()}")
-
-
-if __name__ == "__main__":
-    main()

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Functions for tensorizing MEDS datasets."""
 
 import logging
@@ -89,6 +88,18 @@ def convert_to_NRT(df: pl.LazyFrame) -> JointNestedRaggedTensorDict:
             ...
         ValueError: Expected exactly one time delta column, found columns:
             ['time_delta_days', 'time_delta_hours']
+
+    It returns an empty tensor dict if all columns are empty:
+        >>> df = pl.DataFrame({
+        ...     "subject_id": [],
+        ...     "time_delta_days": [],
+        ...     "code": [],
+        ...     "numeric_value": []
+        ... })
+        >>> nrt = convert_to_NRT(df.lazy())
+        >>> nrt
+        JointNestedRaggedTensorDict(processed_tensors={}, schema={})
+
     """
 
     # There should only be one time delta column, but this ensures we catch it regardless of the unit of time
@@ -126,7 +137,3 @@ def main(cfg: DictConfig):
         write_fn=JointNestedRaggedTensorDict.save,
         shard_iterator_fntr=partial(shard_iterator, in_prefix="event_seqs/", out_suffix=".nrt"),
     )
-
-
-if __name__ == "__main__":  # pragma: no cover
-    main()

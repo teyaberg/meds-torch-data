@@ -13,6 +13,8 @@ def test_dataset(tensorized_MEDS_dataset: Path):
     pyd = MEDSPytorchDataset(config, split="train")
 
     assert len(pyd) == 4, "The dataset should have 4 samples corresponding to the train subjects."
+    assert set(pyd.subject_ids) == {239684, 1195293, 68729, 814703}
+    assert pyd.max_seq_len == 10
 
     for i in range(len(pyd)):
         samp = pyd[i]
@@ -35,6 +37,21 @@ def test_dataset_with_task(tensorized_MEDS_dataset_with_task: tuple[Path, Path, 
     pyd = MEDSPytorchDataset(config, split="train")
 
     assert len(pyd) == 13, "The dataset should have 10 task samples corresponding to the train samples."
+    assert pyd.index == [
+        (239684, 0, 3),
+        (239684, 0, 4),
+        (239684, 0, 5),
+        (1195293, 0, 3),
+        (1195293, 0, 4),
+        (1195293, 0, 6),
+        (68729, 0, 2),
+        (68729, 0, 2),
+        (68729, 0, 2),
+        (68729, 0, 2),
+        (814703, 0, 2),
+        (814703, 0, 2),
+        (814703, 0, 2),
+    ]
 
     for i in range(len(pyd)):
         samp = pyd[i]

@@ -169,14 +169,10 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 self.subj_seq_bounds[subj] = (0, n_events_count)
 
         if self.has_task:
-            task_df_fp = Path(self.config.task_label_path)
-            if not task_df_fp.is_file():
-                logger.info(f"If the task file is not found at {task_df_fp}")
-                task_df_fp = task_df_fp.with_suffix("") / "**/*.parquet"
-                logger.info(f"Searching for task parquets over the glob {task_df_fp}")
-
-            logger.info(f"Reading task constraints for {self.config.task_name} from {task_df_fp}")
-            task_df = pl.read_parquet(task_df_fp)
+            logger.info(f"Reading tasks from {self.task_labels_fps}")
+            task_df = pl.concat(
+                [pl.read_parquet(fp, use_pyarrow=True) for fp in self.task_labels_fps], how="vertical"
+            )
 
             (
                 subjs_and_ends,
@@ -198,6 +194,10 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
     @property
     def has_task(self) -> bool:
         return self.config.task_labels_dir is not None
+
+    @property
+    def task_labels_fps(self) -> list[Path] | None:
+        return list(self.config.task_labels_dir.rglob("*.parquet")) if self.has_task else None
 
     @property
     def max_seq_len(self) -> int:

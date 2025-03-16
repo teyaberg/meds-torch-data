@@ -12,8 +12,8 @@ from .test_tensorization import WANT_NRTS
 from .test_tokenization import WANT_SCHEMAS
 
 
-def test_preprocess(tensorized_MEDS_dataset: tuple[Path, Path]):
-    cohort_dir = tensorized_MEDS_dataset[1]
+def test_preprocess(tensorized_MEDS_dataset: Path):
+    cohort_dir = tensorized_MEDS_dataset
 
     cohort_dir_contents = list(cohort_dir.rglob("*.parquet")) + list(cohort_dir.rglob("*.nrt"))
     cohort_dir_contents_str = "\n".join(f"  - {f.relative_to(cohort_dir)}" for f in cohort_dir_contents)

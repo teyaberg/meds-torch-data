@@ -28,7 +28,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pre-commit<4"]
-tests = ["pytest", "pytest-cov[toml]", "meds_testing_helpers>=0.2"]
+tests = ["pytest", "pytest-cov[toml]", "meds_testing_helpers>=0.2.4"]
 benchmarks = ["ml-mixins[memtrackable]>=0.2", "rootutils"]
 docs = [
     "mkdocs==1.6.0",

@@ -16,9 +16,19 @@ def test_dataset(tensorized_MEDS_dataset: Path):
     assert set(pyd.subject_ids) == {239684, 1195293, 68729, 814703}
     assert pyd.max_seq_len == 10
 
+    samps = []
     for i in range(len(pyd)):
         samp = pyd[i]
         assert isinstance(samp, dict), f"Each sample should be a dictionary. For {i} got {type(samp)}"
+        samps.append(samp)
+
+    full_batch = pyd.collate(samps)
+    assert full_batch is not None
+    assert "code" in full_batch, "The batch should have the code sequence."
+    assert "mask" in full_batch, "The batch should have the mask sequence."
+    assert "numeric_value_mask" in full_batch, "The batch should have the numeric value mask."
+    assert "time_delta_days" in full_batch, "The batch should have the time delta days."
+    assert "numeric_value" in full_batch, "The batch should have the numeric value."
 
     dataloader = pyd.get_dataloader(batch_size=32, num_workers=2)
     batch = next(iter(dataloader))
@@ -53,10 +63,21 @@ def test_dataset_with_task(tensorized_MEDS_dataset_with_task: tuple[Path, Path, 
         (814703, 0, 2),
     ]
 
+    samps = []
     for i in range(len(pyd)):
         samp = pyd[i]
         assert isinstance(samp, dict), f"Each sample should be a dictionary. For {i} got {type(samp)}"
         assert "boolean_value" in samp, "Each sample in the labeled setting should have the label"
+        samps.append(samp)
+
+    full_batch = pyd.collate(samps)
+    assert full_batch is not None
+    assert "code" in full_batch, "The batch should have the code sequence."
+    assert "mask" in full_batch, "The batch should have the mask sequence."
+    assert "numeric_value_mask" in full_batch, "The batch should have the numeric value mask."
+    assert "time_delta_days" in full_batch, "The batch should have the time delta days."
+    assert "numeric_value" in full_batch, "The batch should have the numeric value."
+    assert "boolean_value" in full_batch, "The batch should have the label in the labeled setting."
 
     dataloader = pyd.get_dataloader(batch_size=32, num_workers=2)
     batch = next(iter(dataloader))

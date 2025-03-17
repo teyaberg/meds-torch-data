@@ -275,7 +275,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         subject_id, st, end = self.index[idx]
         dynamic_data = self.load_subject_dynamic_data(subject_id, st, end)
 
-        out = self.load_subject(dynamic_data, subject_id, st, end, seed=seed)
+        out = self.slice_dynamic_data(dynamic_data, subject_id, st, end, seed=seed)
 
         if self.config.do_include_subject_id:
             out["subject_id"] = subject_id
@@ -320,7 +320,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         return subject_dynamic_data
 
-    def load_subject(
+    def slice_dynamic_data(
         self,
         subject_dynamic_data: JointNestedRaggedTensorDict,
         subject_id: int,
@@ -448,8 +448,12 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                                       [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]]),
              'numeric_value_mask': tensor([[False, False,  True,  True, False],
                                            [False, False,  True,  True, False]]),
-             'static_mask': tensor([[False, False, False, False, False],
-                                    [False, False, False, False, False]])}
+             'static_code': tensor([[8, 9],
+                                    [8, 9]]),
+             'static_numeric_value': tensor([[ 0.0000, -0.5438],
+                                             [ 0.0000, -1.1012]]),
+             'static_numeric_value_mask': tensor([[False,  True],
+                                                  [False,  True]])}
             >>> batch = [sample_pytorch_dataset_with_task[0], sample_pytorch_dataset_with_task[1]]
             >>> sample_pytorch_dataset_with_task.collate(batch) # doctest: +NORMALIZE_WHITESPACE
             {'time_delta_days': tensor([[0.0000e+00, 1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
@@ -466,8 +470,12 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                                         -1.1680e+00,  1.3220e-03, -1.3749e+00]]),
              'numeric_value_mask': tensor([[False, False,  True,  True,  True,  True,  True,  True],
                                            [False, False,  True,  True,  True,  True,  True,  True]]),
-             'static_mask': tensor([[False, False, False, False, False, False, False, False],
-                                    [False, False, False, False, False, False, False, False]]),
+             'static_code': tensor([[8, 9],
+                                    [8, 9]]),
+             'static_numeric_value': tensor([[ 0.0000, -0.5438],
+                                             [ 0.0000, -1.1012]]),
+             'static_numeric_value_mask': tensor([[False,  True],
+                                                  [False,  True]]),
              'boolean_value': tensor([False,  True])}
         """
 
@@ -480,7 +488,25 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         out["mask"] = tensorized.pop("dim1/mask")
         out["numeric_value"] = torch.nan_to_num(tensorized["numeric_value"], nan=0).float()
         out["numeric_value_mask"] = ~torch.isnan(tensorized.pop("numeric_value"))
-        out["static_mask"] = tensorized.pop("static_mask")
+
+        match self.config.static_inclusion_mode:
+            case StaticInclusionMode.OMIT:
+                pass
+            case StaticInclusionMode.INCLUDE:
+                static_data = JointNestedRaggedTensorDict(
+                    {
+                        "static_code": [item["static_indices"] for item in batch],
+                        "static_numeric_value": [item["static_values"] for item in batch],
+                    }
+                ).to_dense()
+                static_tensorized = {k: torch.as_tensor(v) for k, v in static_data.items()}
+                out["static_code"] = static_tensorized.pop("static_code").long()
+                out["static_numeric_value"] = torch.nan_to_num(
+                    static_tensorized["static_numeric_value"], nan=0
+                ).float()
+                out["static_numeric_value_mask"] = ~torch.isnan(static_tensorized["static_numeric_value"])
+            case StaticInclusionMode.PREPEND:
+                out["static_mask"] = tensorized.pop("static_mask")
 
         # Add task labels to batch
         for k in batch[0].keys():

@@ -22,7 +22,7 @@ pip install meds-torch-data
 
 ### Step 2: Data Tensorization:
 
-> \[!WARNING\]
+> [!WARNING]
 > If your dataset is not sharded by split, you need to run a reshard to split stage first! You can enable this by adding the `do_reshard=True` argument to the command below.
 
 ```bash
@@ -44,12 +44,12 @@ defined as "fixtures" in this package's pytest stack; namely, we'll use the foll
 
 - `simple_static_MEDS`: This will point to a Path containing a simple MEDS dataset.
 - `simple_static_MEDS_dataset_with_task`: This will point to a Path containing a simple MEDS dataset
-  with a boolean-value task defined. The core data is the same between both the `simple_static_MEDS` and
-  this dataset, but the latter has a task defined.
+    with a boolean-value task defined. The core data is the same between both the `simple_static_MEDS` and
+    this dataset, but the latter has a task defined.
 - `tensorized_MEDS_dataset` fixture that points to a Path containing the tensorized and schema files for
-  the `simple_static_MEDS` dataset.
+    the `simple_static_MEDS` dataset.
 - `tensorized_MEDS_dataset_with_task` fixture that points to a Path containing the tensorized and schema
-  files for the `simple_static_MEDS_dataset_with_task` dataset.
+    files for the `simple_static_MEDS_dataset_with_task` dataset.
 
 You can find these in either the [`conftest.py`](conftest.py) file for this repository or the
 [`meds_testing_helpers`](https://github.com/Medical-Event-Data-Standard/meds_testing_helpers) package, which
@@ -441,29 +441,29 @@ A good PyTorch dataset class should:
 
 - Be easy to use
 - Have a minimal, constant resource footprint (memory, CPU, start-up time) during model training and
-  inference, _regardless of the overall dataset size_.
+    inference, _regardless of the overall dataset size_.
 - Perform as much work as possible in _static, re-usable dataset pre-processing_, rather than upon
-  construction or in the __getitem__ method.
+    construction or in the __getitem__ method.
 - Induce effectively negligible computational overhead in the __getitem__ method relative to model training.
 - Be easily configurable, with a simple, consistent API, and cover the most common use-cases.
 - Encourage efficient use of GPU resources in the resulting batches.
 - Should be comprehensively documented, tested, and benchmarked for performance implications so users can
-  use it reliably and effectively.
+    use it reliably and effectively.
 
 To achieve this, MEDS TorchData leverages the following design principles:
 
 1. **Lazy Loading**: Data is loaded only when needed, and only the data needed for the current batch is
-   loaded.
+    loaded.
 2. **Efficient Loading**: Data is loaded efficiently leveraging the
-   [HuggingFace Safetensors](https://huggingface.co/docs/safetensors/en/index) library for raw IO through
-   the nested, ragged interface encoded in the
-   [Nested Ragged Tensors](https://github.com/mmcdermott/nested_ragged_tensors) library.
+    [HuggingFace Safetensors](https://huggingface.co/docs/safetensors/en/index) library for raw IO through
+    the nested, ragged interface encoded in the
+    [Nested Ragged Tensors](https://github.com/mmcdermott/nested_ragged_tensors) library.
 3. **Configurable, Transparent Pre-processing**: Mandatory data pre-processing prior to effective use in
-   this library is managed through a simple
-   [MEDS-Transforms](https://meds-transforms.readthedocs.io/en/latest/) pipeline which can be run on any
-   MEDS dataset, after any model-specific pre-processing, via a transparent configuration file.
+    this library is managed through a simple
+    [MEDS-Transforms](https://meds-transforms.readthedocs.io/en/latest/) pipeline which can be run on any
+    MEDS dataset, after any model-specific pre-processing, via a transparent configuration file.
 4. **Continuous Integration**: The library is continuously tested and benchmarked for performance
-   implications, and the results are available to users.
+    implications, and the results are available to users.
 
 ### API and Usage
 
@@ -474,16 +474,16 @@ loaded into the PyTorch dataset class contained in this package. This command pe
 steps:
 
 1. Normalize the data into an appropriate, numerical format, including:
-   \- Assigning each unique `code` in the data a unique integer index and converting the codes to those
-   integer indices.
-   \- Normalizing the `numeric_value` field to have a mean of 0 and a standard deviation of 1. _If you would
-   like additional normalization options supported, such as min-max normalization, please file a GitHub
-   issue._
+    \- Assigning each unique `code` in the data a unique integer index and converting the codes to those
+    integer indices.
+    \- Normalizing the `numeric_value` field to have a mean of 0 and a standard deviation of 1. _If you would
+    like additional normalization options supported, such as min-max normalization, please file a GitHub
+    issue._
 2. Produce a set of static, "schema" files that contain the unique time-points of each subjects' events as
-   well as their static measurements.
+    well as their static measurements.
 3. Produce a set of `JointNestedRaggedTensorDict` object files that contain each subjects' dynamic
-   measurements in the form of nested, ragged tensors that can be efficiently loaded via the associated
-   [package](https://github.com/mmcdermott/nested_ragged_tensors)
+    measurements in the form of nested, ragged tensors that can be efficiently loaded via the associated
+    [package](https://github.com/mmcdermott/nested_ragged_tensors)
 
 These are the only three steps this pipeline performs. Note, however, that this does not mean you can't or
 shouldn't perform additional, _model specific pre-processing_ on the data _prior to running the tensorization
@@ -495,9 +495,9 @@ command_ for your specific use-case. Indeed, if you wish to perform additional p
 - Drop subjects with infrequent values
 - Occlude outlier numeric values
 - etc.
-  You should perform these steps on the raw MEDS data _prior to running the tensorization command_. This ensures
-  that the data is modified as you desire in an efficient, transparent way and that the tensorization step works
-  with data in its final format to avoid any issues with discrepancies in code vocabulary, etc.
+    You should perform these steps on the raw MEDS data _prior to running the tensorization command_. This ensures
+    that the data is modified as you desire in an efficient, transparent way and that the tensorization step works
+    with data in its final format to avoid any issues with discrepancies in code vocabulary, etc.
 
 #### Dataset Class
 

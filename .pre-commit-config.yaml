@@ -65,19 +65,21 @@ repos:
 
   # md formatting
   - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.17
+    rev: 0.7.22
     hooks:
       - id: mdformat
         args: ["--number"]
         additional_dependencies:
           - mdformat-gfm
+          - mdformat-gfm-alerts
           - mdformat-tables
           - mdformat_frontmatter
           - mdformat-myst
           - mdformat-black
           - mdformat-config
           - mdformat-shfmt
-        exclude: "docs/index.md|docs/tutorial.md|docs/inductive_experiments.md"
+          - mdformat-mkdocs
+        exclude: "docs/index.md"
 
   # word spelling linter
   - repo: https://github.com/codespell-project/codespell

@@ -106,12 +106,10 @@ class StaticInclusionMode(StrEnum):
     Attributes:
         INCLUDE: Include the static measurements as a separate output key in each batch.
         OMIT: Omit the static measurements entirely.
-        PREPEND: Prepend the static measurements to the sequence of time-dependent measurements.
     """
 
     INCLUDE = "include"
     OMIT = "omit"
-    PREPEND = "prepend"
 
 
 @dataclass

@@ -259,9 +259,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 - numeric_value: List of dynamic numeric values.
                 - numeric_value_mask: Mask of numeric values (False means no numeric value was recorded)
                 - time_delta_days: List of dynamic time deltas between observations.
-                - static_indices(Optional): List of static MEDS codes.
-                - static_values(Optional): List of static MEDS numeric values.
-                - static_mask(Optional): List of static masks (True means the value is static).
+                - static_indices (Optional): List of static MEDS codes.
+                - static_values (Optional): List of static MEDS numeric values.
         """
         return self._seeded_getitem(idx)
 
@@ -352,16 +351,6 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             "static_values": static_row["static_values"].item().to_list(),
         }
 
-        if self.config.static_inclusion_mode == StaticInclusionMode.PREPEND:
-            n_static = len(out["static_indices"])
-            if n_static >= max_seq_len:
-                raise ValueError(
-                    f"Static data length {n_static} matches or exceeds "
-                    f"max_seq_len {max_seq_len} for subject {subject_id}!"
-                )
-
-            max_seq_len -= n_static
-
         if self.config.do_flatten_tensors:
             # Store original lengths for each time step before flattening
             cum_lens = subject_dynamic_data.tensors["dim1/bounds"]
@@ -393,23 +382,6 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             out["end_idx"] = global_end
 
         tensors = subject_dynamic_data.tensors
-
-        if self.config.static_inclusion_mode == StaticInclusionMode.PREPEND:
-            tensors["dim0/time_delta_days"] = np.concatenate(
-                [np.zeros(len(out["static_indices"])), tensors["dim0/time_delta_days"]]
-            )
-            tensors["dim0/static_mask"] = np.concatenate(
-                [
-                    np.ones(len(out["static_indices"]), dtype=bool),
-                    np.zeros(len(tensors["dim0/code"]), dtype=bool),
-                ]
-            )
-            tensors["dim0/code"] = np.concatenate([out["static_indices"], tensors["dim0/code"]])
-            tensors["dim0/numeric_value"] = np.concatenate(
-                [out["static_values"], tensors["dim0/numeric_value"]]
-            )
-        else:
-            tensors["dim0/static_mask"] = np.zeros(len(tensors["dim0/code"]), dtype=bool)
 
         subject_dynamic_data = JointNestedRaggedTensorDict(processed_tensors=tensors)
 
@@ -505,12 +477,10 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                     static_tensorized["static_numeric_value"], nan=0
                 ).float()
                 out["static_numeric_value_mask"] = ~torch.isnan(static_tensorized["static_numeric_value"])
-            case StaticInclusionMode.PREPEND:
-                out["static_mask"] = tensorized.pop("static_mask")
 
         # Add task labels to batch
         for k in batch[0].keys():
-            if k not in ("dynamic", "static_values", "static_indices", "static_mask"):
+            if k not in ("dynamic", "static_values", "static_indices"):
                 if isinstance(batch[0][k], datetime):
                     out[k] = [item[k] for item in batch]
                 elif k == BINARY_LABEL_COL:

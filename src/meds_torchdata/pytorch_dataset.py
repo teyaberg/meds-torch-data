@@ -158,7 +158,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 )
                 .rename({"code": "static_indices", "numeric_value": "static_values"})
                 .with_columns(
-                    pl.col("static_values").list.eval(pl.element().fill_null(0)),
+                    pl.col("static_values").list.eval(pl.element().fill_null(np.nan)),
                     pl.col("static_indices").list.eval(pl.element().fill_null(0)),
                 )
             )
@@ -272,10 +272,30 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         """
 
         subject_id, st, end = self.index[idx]
-        dynamic_data = self.load_subject_dynamic_data(subject_id, st, end)
 
-        out = self.slice_dynamic_data(dynamic_data, subject_id, st, end, seed=seed)
+        shard = self.subj_map[subject_id]
+        subject_idx = self.subj_indices[subject_id]
+        static_row = self.static_dfs[shard][subject_idx].to_dict()
 
+        out = {
+            "static_indices": static_row["static_indices"].item().to_list(),
+            "static_values": static_row["static_values"].item().to_list(),
+        }
+
+        dynamic_data, global_st, global_end = self.slice_dynamic_data(
+            self.load_subject_dynamic_data(subject_id, st, end), subject_id, st, end, seed=seed
+        )
+
+        out["dynamic"] = dynamic_data
+
+        if self.config.do_include_subsequence_indices:
+            out["start_idx"] = global_st
+            out["end_idx"] = global_end
+
+        if self.config.do_include_start_time:
+            out["start_time"] = static_row["time"].item().to_list()[global_st]
+        if self.config.do_include_end_time:
+            out["end_time"] = static_row["time"].item().to_list()[global_end - 1]
         if self.config.do_include_subject_id:
             out["subject_id"] = subject_id
         if self.config.do_include_prediction_time:
@@ -326,7 +346,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         global_st: int,
         global_end: int,
         seed: int | None = None,
-    ) -> dict[str, list[float]]:
+    ) -> tuple[JointNestedRaggedTensorDict, int, int]:
         """Load and process data for a single subject.
 
         Args:
@@ -340,16 +360,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         Examples:
         """
-        shard = self.subj_map[subject_id]
-        subject_idx = self.subj_indices[subject_id]
-        static_row = self.static_dfs[shard][subject_idx].to_dict()
 
         max_seq_len = self.config.max_seq_len
-
-        out = {
-            "static_indices": static_row["static_indices"].item().to_list(),
-            "static_values": static_row["static_values"].item().to_list(),
-        }
 
         if self.config.do_flatten_tensors:
             # Store original lengths for each time step before flattening
@@ -374,25 +386,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             new_global_st = global_st + st_offset
             new_global_end = new_global_st + len(subject_dynamic_data)
 
-        global_st = new_global_st
-        global_end = new_global_end
-
-        if self.config.do_include_subsequence_indices:
-            out["start_idx"] = global_st
-            out["end_idx"] = global_end
-
-        tensors = subject_dynamic_data.tensors
-
-        subject_dynamic_data = JointNestedRaggedTensorDict(processed_tensors=tensors)
-
-        out["dynamic"] = subject_dynamic_data
-
-        if self.config.do_include_start_time:
-            out["start_time"] = static_row["time"].item().to_list()[global_st]
-        if self.config.do_include_end_time:
-            out["end_time"] = static_row["time"].item().to_list()[global_end - 1]
-
-        return out
+        return subject_dynamic_data, new_global_st, new_global_end
 
     def collate(self, batch: list[dict]) -> MEDSTorchBatch:
         """Combines a batch of data points into a single, tensorized batch.
@@ -442,10 +436,10 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                                         -1.1680e+00,  1.3220e-03, -1.3749e+00]]),
              'numeric_value_mask': tensor([[False, False,  True,  True,  True,  True,  True,  True],
                                            [False, False,  True,  True,  True,  True,  True,  True]]),
-             'static_code': tensor([[8, 9],
-                                    [8, 9]]),
-             'static_numeric_value': tensor([[ 0.0000, -0.5438],
-                                             [ 0.0000, -1.1012]]),
+             'static_code': tensor([[7, 9],
+                                    [7, 9]]),
+             'static_numeric_value': tensor([[0.0000, 1.5770],
+                                             [0.0000, 1.5770]]),
              'static_numeric_value_mask': tensor([[False,  True],
                                                   [False,  True]]),
              'boolean_value': tensor([False,  True])}

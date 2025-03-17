@@ -234,9 +234,6 @@ code
 numeric_value
 [        nan         nan -1.4474752  -0.34049404         nan]
 .
-static_mask
-[False False False False False]
-.
 time_delta_days
 [           nan 1.17661045e+04 0.00000000e+00 0.00000000e+00
  9.78703722e-02]
@@ -258,9 +255,6 @@ code
 .
 numeric_value
 [        nan         nan -1.4474752  -0.34049404         nan]
-.
-static_mask
-[False False False False False]
 .
 time_delta_days
 [           nan 1.17661045e+04 0.00000000e+00 0.00000000e+00
@@ -286,9 +280,6 @@ code
 numeric_value
 [-0.04626633  0.69391906 -0.30007038  0.79735875 -0.31064537]
 .
-static_mask
-[False False False False False]
-.
 time_delta_days
 [0.01888889 0.         0.0084838  0.         0.01167824]
 >>> print_element(pyd._seeded_getitem(3, seed=1))
@@ -302,9 +293,6 @@ code
 .
 numeric_value
 [ 0.03833488  0.79735875  0.33972722  0.7456389  -0.04626633]
-.
-static_mask
-[False False False False False]
 .
 time_delta_days
 [0.00115741 0.         0.01373843 0.         0.01888889]
@@ -336,9 +324,6 @@ code
 numeric_value
 [-0.04626633  0.69391906 -0.30007038  0.79735875 -0.31064537]
 .
-static_mask
-[False False False False False]
-.
 time_delta_days
 [0.01888889 0.         0.0084838  0.         0.01167824]
 start_time (datetime):
@@ -362,9 +347,6 @@ code
 .
 numeric_value
 [ 0.03833488  0.79735875  0.33972722  0.7456389  -0.04626633]
-.
-static_mask
-[False False False False False]
 .
 time_delta_days
 [0.00115741 0.         0.01373843 0.         0.01888889]

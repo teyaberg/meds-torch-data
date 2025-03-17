@@ -226,7 +226,7 @@ that we'll also reduce precision in the numeric values to make the output more r
 static_indices (list):
 [8, 9]
 static_values (list):
-[0.0, -0.5438239574432373]
+[nan, -0.5438239574432373]
 dynamic (JointNestedRaggedTensorDict):
 code
 [ 5  3 10 11  4]
@@ -248,7 +248,7 @@ a sequence of length 3 in the dataset and our `max_seq_len` is set to 5.
 static_indices (list):
 [8, 9]
 static_values (list):
-[0.0, -0.5438239574432373]
+[nan, -0.5438239574432373]
 dynamic (JointNestedRaggedTensorDict):
 code
 [ 5  3 10 11  4]
@@ -272,7 +272,7 @@ internal seeded version of the getitem call, which just allows to add a seed ont
 static_indices (list):
 [6, 9]
 static_values (list):
-[0.0, 0.06802856922149658]
+[nan, 0.06802856922149658]
 dynamic (JointNestedRaggedTensorDict):
 code
 [10 11 10 11 10]
@@ -286,7 +286,7 @@ time_delta_days
 static_indices (list):
 [6, 9]
 static_values (list):
-[0.0, 0.06802856922149658]
+[nan, 0.06802856922149658]
 dynamic (JointNestedRaggedTensorDict):
 code
 [10 11 10 11 10]
@@ -312,7 +312,7 @@ on the associated options in the config: `do_include_subject_id`, `do_include_su
 static_indices (list):
 [6, 9]
 static_values (list):
-[0.0, 0.06802856922149658]
+[nan, 0.06802856922149658]
 start_idx (int):
 5
 end_idx (int):
@@ -336,7 +336,7 @@ subject_id (int):
 static_indices (list):
 [6, 9]
 static_values (list):
-[0.0, 0.06802856922149658]
+[nan, 0.06802856922149658]
 start_idx (int):
 2
 end_idx (int):

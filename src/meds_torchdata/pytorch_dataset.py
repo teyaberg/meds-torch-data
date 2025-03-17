@@ -282,11 +282,14 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             "static_values": static_row["static_values"].item().to_list(),
         }
 
-        dynamic_data, global_st, global_end = self.slice_dynamic_data(
-            self.load_subject_dynamic_data(subject_id, st, end), subject_id, st, end, seed=seed
+        dynamic_data, st_offset, end_offset_from_st = self.slice_dynamic_data(
+            self.load_subject_dynamic_data(subject_id, st, end), seed=seed
         )
 
         out["dynamic"] = dynamic_data
+
+        global_st = st + st_offset
+        global_end = global_st + end_offset_from_st
 
         if self.config.do_include_subsequence_indices:
             out["start_idx"] = global_st
@@ -342,18 +345,13 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
     def slice_dynamic_data(
         self,
         subject_dynamic_data: JointNestedRaggedTensorDict,
-        subject_id: int,
-        global_st: int,
-        global_end: int,
         seed: int | None = None,
     ) -> tuple[JointNestedRaggedTensorDict, int, int]:
         """Load and process data for a single subject.
 
         Args:
             subject_dynamic_data: The dynamic data for the subject.
-            subject_id (int): The ID of the subject to load.
-            global_st (int): The start index of the sequence to load.
-            global_end (int): The end index of the sequence to load.
+            seed: The random seed to use for subsequence sampling.
 
         Returns:
             dict: A dictionary containing the processed data for the subject.
@@ -380,13 +378,12 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         if self.config.do_flatten_tensors:
             # Map flattened indices back to original time indices
-            new_global_st = global_st + np.searchsorted(cum_lens, st_offset, side="right").item()
-            new_global_end = global_st + np.searchsorted(cum_lens, end, side="right").item()
+            st_offset = np.searchsorted(cum_lens, st_offset, side="right").item()
+            end_offset_from_st = np.searchsorted(cum_lens, end, side="right").item() - st_offset
         else:
-            new_global_st = global_st + st_offset
-            new_global_end = new_global_st + len(subject_dynamic_data)
+            end_offset_from_st = len(subject_dynamic_data)
 
-        return subject_dynamic_data, new_global_st, new_global_end
+        return subject_dynamic_data, st_offset, end_offset_from_st
 
     def collate(self, batch: list[dict]) -> MEDSTorchBatch:
         """Combines a batch of data points into a single, tensorized batch.

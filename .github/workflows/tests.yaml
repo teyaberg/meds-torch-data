@@ -32,7 +32,7 @@ jobs:
       #----------------------------------------------
       - name: Run tests
         run: |
-          pytest -v --cov=src tests/ src/ -m "not parallelized"
+          pytest -v --cov=src -m "not parallelized" --ignore="benchmark"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4.0.1

@@ -119,6 +119,8 @@ will also cover the full range of each subject's data.
 4
 >>> pyd.index
 [(68729, 0, 3), (814703, 0, 3), (239684, 0, 6), (1195293, 0, 8)]
+>>> pyd.subject_ids
+[68729, 814703, 239684, 1195293]
 
 ```
 

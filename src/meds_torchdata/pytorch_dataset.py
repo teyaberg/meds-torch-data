@@ -193,26 +193,55 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
     @property
     def subject_ids(self) -> list[int]:
+        """Returns the list of subject IDs for whom data is returned for each index. May have duplicates.
+
+        Examples:
+            >>> sample_pytorch_dataset.subject_ids
+            [68729, 814703, 239684, 1195293]
+            >>> sample_pytorch_dataset_with_task.subject_ids # doctest: +NORMALIZE_WHITESPACE
+            [239684, 239684, 239684,
+             1195293, 1195293, 1195293,
+             68729, 68729, 68729, 68729,
+             814703, 814703, 814703]
+        """
         return [x[0] for x in self.index]
 
     def __len__(self):
+        """Returns the length of the dataset.
+
+        Examples:
+            >>> len(sample_pytorch_dataset)
+            4
+            >>> len(sample_pytorch_dataset_with_task)
+            13
+        """
         return len(self.index)
 
     @property
     def has_task(self) -> bool:
+        """Returns whether the dataset has a task specified.
+
+        Examples:
+            >>> sample_pytorch_dataset.has_task
+            False
+            >>> sample_pytorch_dataset_with_task.has_task
+            True
+        """
         return self.config.task_labels_dir is not None
 
     @property
     def task_labels_fps(self) -> list[Path] | None:
+        """Returns the list of task label files for the dataset.
+
+        Examples:
+            >>> print(sample_pytorch_dataset.task_labels_fps)
+            None
+            >>> print(sample_pytorch_dataset_with_task.task_labels_fps) # doctest: +NORMALIZE_WHITESPACE
+            [PosixPath('/tmp/.../task_labels/boolean_value_task/labels_A.parquet.parquet'),
+             PosixPath('/tmp/.../task_labels/boolean_value_task/labels_B.parquet.parquet')]
+        """
+
         return list(self.config.task_labels_dir.rglob("*.parquet")) if self.has_task else None
-
-    @property
-    def max_seq_len(self) -> int:
-        return self.config.max_seq_len
-
-    @property
-    def static_inclusion_mode(self) -> StaticInclusionMode:
-        return self.config.static_inclusion_mode
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         """Retrieve a single data point from the dataset.
@@ -318,7 +347,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             "static_values": static_row["static_values"].item().to_list(),
         }
 
-        if self.static_inclusion_mode == StaticInclusionMode.PREPEND:
+        if self.config.static_inclusion_mode == StaticInclusionMode.PREPEND:
             n_static = len(out["static_indices"])
             if n_static >= max_seq_len:
                 raise ValueError(
@@ -360,7 +389,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         tensors = subject_dynamic_data.tensors
 
-        if self.static_inclusion_mode == StaticInclusionMode.PREPEND:
+        if self.config.static_inclusion_mode == StaticInclusionMode.PREPEND:
             tensors["dim0/time_delta_days"] = np.concatenate(
                 [np.zeros(len(out["static_indices"])), tensors["dim0/time_delta_days"]]
             )
@@ -400,24 +429,64 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         Returns:
             dict: A dictionary containing the collated batch data.
+
+        Examples:
+            >>> batch = [sample_pytorch_dataset[0], sample_pytorch_dataset[1]]
+            >>> sample_pytorch_dataset.collate(batch) # doctest: +NORMALIZE_WHITESPACE
+            {'time_delta_days': tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
+                                        [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]]),
+             'code': tensor([[ 5,  3, 10, 11,  4],
+                             [ 5,  2, 10, 11,  4]]),
+             'mask': tensor([[True, True, True, True, True],
+                             [True, True, True, True, True]]),
+             'numeric_value': tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],
+                                      [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]]),
+             'numeric_value_mask': tensor([[False, False,  True,  True, False],
+                                           [False, False,  True,  True, False]]),
+             'static_mask': tensor([[False, False, False, False, False],
+                                    [False, False, False, False, False]])}
+            >>> batch = [sample_pytorch_dataset_with_task[0], sample_pytorch_dataset_with_task[1]]
+            >>> sample_pytorch_dataset_with_task.collate(batch) # doctest: +NORMALIZE_WHITESPACE
+            {'time_delta_days': tensor([[0.0000e+00, 1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
+                                         0.0000e+00, 0.0000e+00, 0.0000e+00],
+                                        [0.0000e+00, 1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
+                                         0.0000e+00, 2.5544e-02, 0.0000e+00]]),
+             'code': tensor([[ 5,  1, 10, 11, 10, 11,  0,  0],
+                             [ 5,  1, 10, 11, 10, 11, 10, 11]]),
+             'mask': tensor([[ True,  True,  True,  True,  True,  True, False, False],
+                             [ True,  True,  True,  True,  True,  True,  True,  True]]),
+             'numeric_value': tensor([[ 0.0000e+00,  0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01,
+                                       -1.1680e+00,  0.0000e+00,  0.0000e+00],
+                                      [ 0.0000e+00,  0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01,
+                                        -1.1680e+00,  1.3220e-03, -1.3749e+00]]),
+             'numeric_value_mask': tensor([[False, False,  True,  True,  True,  True,  True,  True],
+                                           [False, False,  True,  True,  True,  True,  True,  True]]),
+             'static_mask': tensor([[False, False, False, False, False, False, False, False],
+                                    [False, False, False, False, False, False, False, False]]),
+             'boolean_value': tensor([False,  True])}
         """
 
         data = JointNestedRaggedTensorDict.vstack([item["dynamic"] for item in batch]).to_dense()
         tensorized = {k: torch.as_tensor(v) for k, v in data.items()}
-        tensorized["code"] = tensorized["code"].long()
-        tensorized["mask"] = tensorized.pop("dim1/mask")
-        tensorized["numeric_value_mask"] = ~torch.isnan(tensorized["numeric_value"])
-        tensorized["time_delta_days"] = torch.nan_to_num(tensorized["time_delta_days"], nan=0).float()
-        tensorized["numeric_value"] = torch.nan_to_num(tensorized["numeric_value"], nan=0).float()
+
+        out = {}
+        out["time_delta_days"] = torch.nan_to_num(tensorized.pop("time_delta_days"), nan=0).float()
+        out["code"] = tensorized.pop("code").long()
+        out["mask"] = tensorized.pop("dim1/mask")
+        out["numeric_value"] = torch.nan_to_num(tensorized["numeric_value"], nan=0).float()
+        out["numeric_value_mask"] = ~torch.isnan(tensorized.pop("numeric_value"))
+        out["static_mask"] = tensorized.pop("static_mask")
 
         # Add task labels to batch
         for k in batch[0].keys():
             if k not in ("dynamic", "static_values", "static_indices", "static_mask"):
                 if isinstance(batch[0][k], datetime):
-                    tensorized[k] = [item[k] for item in batch]
+                    out[k] = [item[k] for item in batch]
+                elif k == BINARY_LABEL_COL:
+                    out[k] = torch.Tensor([item[k] for item in batch]).bool()
                 else:
-                    tensorized[k] = torch.Tensor([item[k] for item in batch])
-        return tensorized
+                    out[k] = torch.Tensor([item[k] for item in batch])
+        return out
 
     def get_dataloader(self, **kwargs) -> torch.utils.data.DataLoader:
         """Constructs a PyTorch DataLoader for this dataset.

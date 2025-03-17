@@ -52,4 +52,4 @@ def benchmark_dataset(request, generated_sample_MEDS: Path) -> Path:
 
         assert out.returncode == 0, error_str
 
-        yield generated_sample_MEDS, Path(cohort_dir)
+        yield Path(cohort_dir)

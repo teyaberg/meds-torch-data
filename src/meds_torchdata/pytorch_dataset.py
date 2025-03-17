@@ -45,9 +45,20 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                `metadata/subject_splits.parquet` file's `split` column.
 
     Attributes:
-        TODO
+        config: The configuration options for the dataset.
+        split: The data split to use.
+        static_dfs: A dictionary of static DataFrames for each shard.
+        subj_indices: A mapping of subject IDs to their indices.
+        subj_seq_bounds: A dictionary of sequence bounds for each subject.
+        index: A list of (subject_id, start, end) tuples for data access.
+        labels: A dictionary of task labels (if tasks are specified).
+
+    Note in the example below, we'll reference a `tensorized_MEDS_dataset` fixture that points to a temporary
+    path that contains some sample data. This is defined as a pytest fixture in `tests/conftest.py`.
 
     Examples:
+        >>> cfg = MEDSTorchDataConfig(tensorized_cohort_dir=tensorized_MEDS_dataset, max_seq_len=10)
+        >>> pyd = MEDSPytorchDataset(cfg, split="train")
     """
 
     @staticmethod

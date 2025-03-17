@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from meds_testing_helpers.dataset import MEDSDataset
 
-from .preprocessing import PREPROCESS_SCRIPT
+from tests.preprocessing import PREPROCESS_SCRIPT
 
 
 @pytest.fixture(scope="session")
@@ -48,3 +48,13 @@ def tensorized_MEDS_dataset_with_task(
         raise ValueError("Expected only one task in the dataset.")
 
     yield cohort_dir, D.task_root_dir, D.task_names[0]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _setup_doctest_namespace(doctest_namespace, tensorized_MEDS_dataset, tensorized_MEDS_dataset_with_task):
+    doctest_namespace.update(
+        {
+            "tensorized_MEDS_dataset": tensorized_MEDS_dataset,
+            "tensorized_MEDS_dataset_with_task": tensorized_MEDS_dataset_with_task,
+        }
+    )

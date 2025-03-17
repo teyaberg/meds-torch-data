@@ -37,7 +37,7 @@ class SubsequenceSamplingStrategy(StrEnum):
         strategy,
         seq_len: int,
         max_seq_len: int,
-        rng: Generator | None = None,
+        rng: Generator | int | None = None,
     ) -> int | None:
         """Subsample starting offset based on maximum sequence length and sampling strategy.
 
@@ -45,7 +45,8 @@ class SubsequenceSamplingStrategy(StrEnum):
             strategy: Strategy for selecting subsequence (RANDOM, TO_END, FROM_START)
             seq_len: Length of the sequence
             max_seq_len: Maximum allowed sequence length
-            rng: Random number generator for random sampling. If None, a new generator is created.
+            rng: Random number generator for random sampling. If None, a new generator is created. If an
+                integer, a new generator is created with that seed.
 
         Returns:
             The (integral) start offset within the sequence based on the sampling strategy, or `None` if no
@@ -57,6 +58,8 @@ class SubsequenceSamplingStrategy(StrEnum):
             >>> SubsequenceSamplingStrategy.subsample_st_offset(SubsequenceSamplingStrategy.TO_END, 10, 5)
             5
             >>> SubsequenceSamplingStrategy.subsample_st_offset("random", 10, 5, rng=default_rng(1))
+            2
+            >>> SubsequenceSamplingStrategy.subsample_st_offset("random", 10, 5, rng=1)
             2
             >>> SubsequenceSamplingStrategy.RANDOM.subsample_st_offset(10, 10) is None
             True
@@ -73,6 +76,9 @@ class SubsequenceSamplingStrategy(StrEnum):
             case SubsequenceSamplingStrategy.RANDOM:
                 if rng is None:
                     rng = default_rng()
+                elif isinstance(rng, int):
+                    rng = default_rng(rng)
+
                 return rng.choice(seq_len - max_seq_len)
             case SubsequenceSamplingStrategy.TO_END:
                 return seq_len - max_seq_len

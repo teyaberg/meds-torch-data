@@ -55,6 +55,7 @@ addopts = [
   "--color=yes",
   "--doctest-modules",
   "--ignore=docs",
+  "--doctest-glob=*.md",
 ]
 markers = [
   "parallelized: mark test as parallelized, requiring hydra-joblib-launcher",

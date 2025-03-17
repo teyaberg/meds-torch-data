@@ -53,12 +53,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         index: A list of (subject_id, start, end) tuples for data access.
         labels: A dictionary of task labels (if tasks are specified).
 
-    Note in the example below, we'll reference a `tensorized_MEDS_dataset` fixture that points to a temporary
-    path that contains some sample data. This is defined as a pytest fixture in `tests/conftest.py`.
-
-    Examples:
-        >>> cfg = MEDSTorchDataConfig(tensorized_cohort_dir=tensorized_MEDS_dataset, max_seq_len=10)
-        >>> pyd = MEDSPytorchDataset(cfg, split="train")
+    For examples of this class, see the global README.md. Here, we'll include some examples of other aspects
+    of the class, such as error validation and specific methods.
     """
 
     @staticmethod
@@ -237,12 +233,20 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 - static_indices(Optional): List of static MEDS codes.
                 - static_values(Optional): List of static MEDS numeric values.
                 - static_mask(Optional): List of static masks (True means the value is static).
-
         """
+        return self._seeded_getitem(idx)
+
+    def _seeded_getitem(self, idx: int, seed: int | None = None) -> dict[str, torch.Tensor]:
+        """Retrieve a single data point from the dataset with a specified random seed.
+
+        This is merely a deterministic wrapper around the `_getitem` method that allows for deterministic
+        subsequence sampling.
+        """
+
         subject_id, st, end = self.index[idx]
         dynamic_data = self.load_subject_dynamic_data(subject_id, st, end)
 
-        out = self.load_subject(dynamic_data, subject_id, st, end)
+        out = self.load_subject(dynamic_data, subject_id, st, end, seed=seed)
 
         if self.config.do_include_subject_id:
             out["subject_id"] = subject_id
@@ -288,7 +292,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         return subject_dynamic_data
 
     def load_subject(
-        self, subject_dynamic_data, subject_id: int, global_st: int, global_end: int
+        self, subject_dynamic_data, subject_id: int, global_st: int, global_end: int, seed: int | None = None
     ) -> dict[str, list[float]]:
         """Load and process data for a single subject.
 
@@ -331,7 +335,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         seq_len = len(subject_dynamic_data)
         st_offset = SubsequenceSamplingStrategy.subsample_st_offset(
-            self.config.seq_sampling_strategy, seq_len, max_seq_len
+            self.config.seq_sampling_strategy, seq_len, max_seq_len, rng=seed
         )
         if st_offset is None:
             st_offset = 0

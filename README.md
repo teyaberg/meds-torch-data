@@ -38,6 +38,398 @@ from meds_torchdata import MEDSPytorchDataset
 pyd = MEDSPytorchDataset(...)
 ```
 
+To see how this works, let's look at some examples. These examples will be powered by some synthetic data
+defined as "fixtures" in this package's pytest stack; namely, we'll use the following fixtures:
+
+- `simple_static_MEDS`: This will point to a Path containing a simple MEDS dataset.
+- `simple_static_MEDS_dataset_with_task`: This will point to a Path containing a simple MEDS dataset
+  with a boolean-value task defined. The core data is the same between both the `simple_static_MEDS` and
+  this dataset, but the latter has a task defined.
+- `tensorized_MEDS_dataset` fixture that points to a Path containing the tensorized and schema files for
+  the `simple_static_MEDS` dataset.
+- `tensorized_MEDS_dataset_with_task` fixture that points to a Path containing the tensorized and schema
+  files for the `simple_static_MEDS_dataset_with_task` dataset.
+
+You can find these in either the [`conftest.py`](conftest.py) file for this repository or the
+[`meds_testing_helpers`](https://github.com/Medical-Event-Data-Standard/meds_testing_helpers) package, which
+this package leverages for testing.
+
+To start, let's take a look at this syntehtic data. It is sharded by split, and we'll look at the train split
+first, which has two shards (we convert to polars just for prettier printing). It has four subjects
+across the two shards.
+
+```python
+>>> import polars as pl
+>>> from meds_testing_helpers.dataset import MEDSDataset
+>>> D = MEDSDataset(root_dir=simple_static_MEDS)
+>>> train_0 = pl.from_arrow(D.data_shards["train/0"])
+>>> train_0
+shape: (30, 4)
+┌────────────┬─────────────────────┬────────────────────┬───────────────┐
+│ subject_id ┆ time                ┆ code               ┆ numeric_value │
+│ ---        ┆ ---                 ┆ ---                ┆ ---           │
+│ i64        ┆ datetime[μs]        ┆ str                ┆ f32           │
+╞════════════╪═════════════════════╪════════════════════╪═══════════════╡
+│ 239684     ┆ null                ┆ EYE_COLOR//BROWN   ┆ null          │
+│ 239684     ┆ null                ┆ HEIGHT             ┆ 175.271118    │
+│ 239684     ┆ 1980-12-28 00:00:00 ┆ DOB                ┆ null          │
+│ 239684     ┆ 2010-05-11 17:41:51 ┆ ADMISSION//CARDIAC ┆ null          │
+│ 239684     ┆ 2010-05-11 17:41:51 ┆ HR                 ┆ 102.599998    │
+│ …          ┆ …                   ┆ …                  ┆ …             │
+│ 1195293    ┆ 2010-06-20 20:24:44 ┆ HR                 ┆ 107.699997    │
+│ 1195293    ┆ 2010-06-20 20:24:44 ┆ TEMP               ┆ 100.0         │
+│ 1195293    ┆ 2010-06-20 20:41:33 ┆ HR                 ┆ 107.5         │
+│ 1195293    ┆ 2010-06-20 20:41:33 ┆ TEMP               ┆ 100.400002    │
+│ 1195293    ┆ 2010-06-20 20:50:04 ┆ DISCHARGE          ┆ null          │
+└────────────┴─────────────────────┴────────────────────┴───────────────┘
+>>> train_1 = pl.from_arrow(D.data_shards["train/1"])
+>>> train_1
+shape: (14, 4)
+┌────────────┬─────────────────────┬───────────────────────┬───────────────┐
+│ subject_id ┆ time                ┆ code                  ┆ numeric_value │
+│ ---        ┆ ---                 ┆ ---                   ┆ ---           │
+│ i64        ┆ datetime[μs]        ┆ str                   ┆ f32           │
+╞════════════╪═════════════════════╪═══════════════════════╪═══════════════╡
+│ 68729      ┆ null                ┆ EYE_COLOR//HAZEL      ┆ null          │
+│ 68729      ┆ null                ┆ HEIGHT                ┆ 160.395309    │
+│ 68729      ┆ 1978-03-09 00:00:00 ┆ DOB                   ┆ null          │
+│ 68729      ┆ 2010-05-26 02:30:56 ┆ ADMISSION//PULMONARY  ┆ null          │
+│ 68729      ┆ 2010-05-26 02:30:56 ┆ HR                    ┆ 86.0          │
+│ …          ┆ …                   ┆ …                     ┆ …             │
+│ 814703     ┆ 1976-03-28 00:00:00 ┆ DOB                   ┆ null          │
+│ 814703     ┆ 2010-02-05 05:55:39 ┆ ADMISSION//ORTHOPEDIC ┆ null          │
+│ 814703     ┆ 2010-02-05 05:55:39 ┆ HR                    ┆ 170.199997    │
+│ 814703     ┆ 2010-02-05 05:55:39 ┆ TEMP                  ┆ 100.099998    │
+│ 814703     ┆ 2010-02-05 07:02:30 ┆ DISCHARGE             ┆ null          │
+└────────────┴─────────────────────┴───────────────────────┴───────────────┘
+>>> sorted(set(train_0["subject_id"].unique()) | set(train_1["subject_id"].unique()))
+[68729, 239684, 814703, 1195293]
+
+```
+
+Given this data, when we build a PyTorch dataset from it for training, with no task specified, the
+length will be four, as it will correspond to each of the four subjects in the train split. The index
+will also cover the full range of each subject's data.
+
+```python
+>>> from meds_torchdata.pytorch_dataset import MEDSTorchDataConfig, MEDSPytorchDataset
+>>> cfg = MEDSTorchDataConfig(tensorized_cohort_dir=tensorized_MEDS_dataset, max_seq_len=5)
+>>> pyd = MEDSPytorchDataset(cfg, split="train")
+>>> len(pyd)
+4
+>>> pyd.index
+[(68729, 0, 3), (814703, 0, 3), (239684, 0, 6), (1195293, 0, 8)]
+
+```
+
+Note the index is in terms of _event indices_, not _measurement indices_ -- meaning it is the index of the
+unique timestamp corresponding to the start and end of each subject's data; not the unique measurement. We can
+validate that against the raw data. To do so, we'll define the simple helper function `get_event_bounds` that
+will just group by the `subject_id` and `time` columns, and then calculate the event index for each subject
+and show us the min and max such index, per-subject.
+
+```python
+>>> def get_event_indices(df: pl.DataFrame) -> pl.DataFrame:
+...     return (
+...         df
+...         .group_by("subject_id", "time", maintain_order=True).agg(pl.len().alias("n_measurements"))
+...         .with_row_index()
+...         .select(
+...             "subject_id", "time",
+...             (pl.col("index") - pl.col("index").min().over("subject_id")).alias("event_idx"),
+...             "n_measurements",
+...         )
+...     )
+>>> def get_event_bounds(df: pl.DataFrame) -> pl.DataFrame:
+...     return (
+...         get_event_indices(df)
+...         .with_columns(
+...             pl.col("event_idx").max().over("subject_id").alias("max_event_idx")
+...         )
+...         .filter((pl.col("event_idx") == 0) | (pl.col("event_idx") == pl.col("max_event_idx")))
+...         .select("subject_id", "event_idx", "time")
+...     )
+>>> get_event_bounds(train_1)
+shape: (4, 3)
+┌────────────┬───────────┬─────────────────────┐
+│ subject_id ┆ event_idx ┆ time                │
+│ ---        ┆ ---       ┆ ---                 │
+│ i64        ┆ u32       ┆ datetime[μs]        │
+╞════════════╪═══════════╪═════════════════════╡
+│ 68729      ┆ 0         ┆ null                │
+│ 68729      ┆ 3         ┆ 2010-05-26 04:51:52 │
+│ 814703     ┆ 0         ┆ null                │
+│ 814703     ┆ 3         ┆ 2010-02-05 07:02:30 │
+└────────────┴───────────┴─────────────────────┘
+>>> get_event_bounds(train_0)
+shape: (4, 3)
+┌────────────┬───────────┬─────────────────────┐
+│ subject_id ┆ event_idx ┆ time                │
+│ ---        ┆ ---       ┆ ---                 │
+│ i64        ┆ u32       ┆ datetime[μs]        │
+╞════════════╪═══════════╪═════════════════════╡
+│ 239684     ┆ 0         ┆ null                │
+│ 239684     ┆ 6         ┆ 2010-05-11 19:27:19 │
+│ 1195293    ┆ 0         ┆ null                │
+│ 1195293    ┆ 8         ┆ 2010-06-20 20:50:04 │
+└────────────┴───────────┴─────────────────────┘
+
+```
+
+While the raw data has codes as strings, naturally, when embedded in the pytorch dataset, they'll get
+converted to integers. This happens during the forementioned tensorization step. We can see how the codes are
+mapped to integers by looking at the output code metadata of that step:
+
+```python
+>>> code_metadata = pl.read_parquet(tensorized_MEDS_dataset.joinpath("metadata/codes.parquet"))
+>>> code_metadata.select("code", "code/vocab_index")
+shape: (11, 2)
+┌───────────────────────┬──────────────────┐
+│ code                  ┆ code/vocab_index │
+│ ---                   ┆ ---              │
+│ str                   ┆ u8               │
+╞═══════════════════════╪══════════════════╡
+│ ADMISSION//CARDIAC    ┆ 1                │
+│ ADMISSION//ORTHOPEDIC ┆ 2                │
+│ ADMISSION//PULMONARY  ┆ 3                │
+│ DISCHARGE             ┆ 4                │
+│ DOB                   ┆ 5                │
+│ …                     ┆ …                │
+│ EYE_COLOR//BROWN      ┆ 7                │
+│ EYE_COLOR//HAZEL      ┆ 8                │
+│ HEIGHT                ┆ 9                │
+│ HR                    ┆ 10               │
+│ TEMP                  ┆ 11               │
+└───────────────────────┴──────────────────┘
+
+```
+
+We can see these vocab indices being used if we look at some elements of the pytorch dataset. Note that some
+elements of the returned dictionaries are
+[`JointNestedRaggedTensorDict`](https://github.com/mmcdermott/nested_ragged_tensors) objects, so we'll define
+a helper here that will use a helper from the associated library to help us pretty-print out outputs. Note
+that we'll also reduce precision in the numeric values to make the output more readable.
+
+```python
+>>> from nested_ragged_tensors.ragged_numpy import pprint_dense
+>>> def print_element(el: dict):
+...     for k, v in el.items():
+...         print(f"{k} ({type(v).__name__}):")
+...         if k == "dynamic":
+...             pprint_dense(v.to_dense())
+...         else:
+...             print(v)
+>>> print_element(pyd[0])
+static_indices (list):
+[8, 9]
+static_values (list):
+[0.0, -0.5438239574432373]
+dynamic (JointNestedRaggedTensorDict):
+code
+[ 5  3 10 11  4]
+.
+numeric_value
+[        nan         nan -1.4474752  -0.34049404         nan]
+.
+static_mask
+[False False False False False]
+.
+time_delta_days
+[           nan 1.17661045e+04 0.00000000e+00 0.00000000e+00
+ 9.78703722e-02]
+
+```
+
+The contents of `pyd[0]` are stable, because index element 0, `(68729, 0, 3)`, indicates the first subject has
+a sequence of length 3 in the dataset and our `max_seq_len` is set to 5.
+
+```python
+>>> print_element(pyd[0])
+static_indices (list):
+[8, 9]
+static_values (list):
+[0.0, -0.5438239574432373]
+dynamic (JointNestedRaggedTensorDict):
+code
+[ 5  3 10 11  4]
+.
+numeric_value
+[        nan         nan -1.4474752  -0.34049404         nan]
+.
+static_mask
+[False False False False False]
+.
+time_delta_days
+[           nan 1.17661045e+04 0.00000000e+00 0.00000000e+00
+ 9.78703722e-02]
+
+```
+
+If we sampled a different subject, one with more than 5 events, the output we'd get would be dependent on the
+`config.seq_sampling_strategy` option, and could be non-deterministic. By default, this is set to `random`, so
+we'll get a random subset of length 5 each time. Here, so that this code is deterministic, we'll use the
+internal seeded version of the getitem call, which just allows to add a seed onto the normal getitem call.
+
+```python
+>>> print_element(pyd._seeded_getitem(3, seed=0))
+static_indices (list):
+[6, 9]
+static_values (list):
+[0.0, 0.06802856922149658]
+dynamic (JointNestedRaggedTensorDict):
+code
+[10 11 10 11 10]
+.
+numeric_value
+[-0.04626633  0.69391906 -0.30007038  0.79735875 -0.31064537]
+.
+static_mask
+[False False False False False]
+.
+time_delta_days
+[0.01888889 0.         0.0084838  0.         0.01167824]
+>>> print_element(pyd._seeded_getitem(3, seed=1))
+static_indices (list):
+[6, 9]
+static_values (list):
+[0.0, 0.06802856922149658]
+dynamic (JointNestedRaggedTensorDict):
+code
+[10 11 10 11 10]
+.
+numeric_value
+[ 0.03833488  0.79735875  0.33972722  0.7456389  -0.04626633]
+.
+static_mask
+[False False False False False]
+.
+time_delta_days
+[0.00115741 0.         0.01373843 0.         0.01888889]
+
+```
+
+We can see which exact subject, subsequence indices, and functional start and end time were chosen if we turn
+on the associated options in the config: `do_include_subject_id`, `do_include_subsequence_indices`,
+`do_include_start_time`, and `do_include_end_time`.
+
+```python
+>>> pyd.config.do_include_subject_id = True
+>>> pyd.config.do_include_subsequence_indices = True
+>>> pyd.config.do_include_start_time = True
+>>> pyd.config.do_include_end_time = True
+>>> print_element(pyd._seeded_getitem(3, seed=0))
+static_indices (list):
+[6, 9]
+static_values (list):
+[0.0, 0.06802856922149658]
+start_idx (int):
+5
+end_idx (int):
+7
+dynamic (JointNestedRaggedTensorDict):
+code
+[10 11 10 11 10]
+.
+numeric_value
+[-0.04626633  0.69391906 -0.30007038  0.79735875 -0.31064537]
+.
+static_mask
+[False False False False False]
+.
+time_delta_days
+[0.01888889 0.         0.0084838  0.         0.01167824]
+start_time (datetime):
+2010-06-20 20:12:31
+end_time (datetime):
+2010-06-20 20:41:33
+subject_id (int):
+1195293
+>>> print_element(pyd._seeded_getitem(3, seed=1))
+static_indices (list):
+[6, 9]
+static_values (list):
+[0.0, 0.06802856922149658]
+start_idx (int):
+2
+end_idx (int):
+5
+dynamic (JointNestedRaggedTensorDict):
+code
+[10 11 10 11 10]
+.
+numeric_value
+[ 0.03833488  0.79735875  0.33972722  0.7456389  -0.04626633]
+.
+static_mask
+[False False False False False]
+.
+time_delta_days
+[0.00115741 0.         0.01373843 0.         0.01888889]
+start_time (datetime):
+2010-06-20 19:25:32
+end_time (datetime):
+2010-06-20 20:12:31
+subject_id (int):
+1195293
+
+```
+
+Note that this reveals something important: The `start_idx` and `end_idx` are in terms of the _event index_,
+not the _measurement index_. However, we are clearly sampling a subsequence of measurements, which means we
+can start or end in the middle of an event -- in this case, we end in the _middle_ of event at index `5`. To
+ensure that these bounds make sense, let's look at the event indices for this subject.
+
+```python
+>>> pl.Config.set_tbl_rows(18)
+...
+>>> train_0.filter(pl.col("subject_id") == 1195293)
+shape: (17, 4)
+┌────────────┬─────────────────────┬────────────────────┬───────────────┐
+│ subject_id ┆ time                ┆ code               ┆ numeric_value │
+│ ---        ┆ ---                 ┆ ---                ┆ ---           │
+│ i64        ┆ datetime[μs]        ┆ str                ┆ f32           │
+╞════════════╪═════════════════════╪════════════════════╪═══════════════╡
+│ 1195293    ┆ null                ┆ EYE_COLOR//BLUE    ┆ null          │
+│ 1195293    ┆ null                ┆ HEIGHT             ┆ 164.68689     │
+│ 1195293    ┆ 1978-06-20 00:00:00 ┆ DOB                ┆ null          │
+│ 1195293    ┆ 2010-06-20 19:23:52 ┆ ADMISSION//CARDIAC ┆ null          │
+│ 1195293    ┆ 2010-06-20 19:23:52 ┆ HR                 ┆ 109.0         │
+│ 1195293    ┆ 2010-06-20 19:23:52 ┆ TEMP               ┆ 100.0         │
+│ 1195293    ┆ 2010-06-20 19:25:32 ┆ HR                 ┆ 114.099998    │
+│ 1195293    ┆ 2010-06-20 19:25:32 ┆ TEMP               ┆ 100.0         │
+│ 1195293    ┆ 2010-06-20 19:45:19 ┆ HR                 ┆ 119.800003    │
+│ 1195293    ┆ 2010-06-20 19:45:19 ┆ TEMP               ┆ 99.900002     │
+│ 1195293    ┆ 2010-06-20 20:12:31 ┆ HR                 ┆ 112.5         │
+│ 1195293    ┆ 2010-06-20 20:12:31 ┆ TEMP               ┆ 99.800003     │
+│ 1195293    ┆ 2010-06-20 20:24:44 ┆ HR                 ┆ 107.699997    │
+│ 1195293    ┆ 2010-06-20 20:24:44 ┆ TEMP               ┆ 100.0         │
+│ 1195293    ┆ 2010-06-20 20:41:33 ┆ HR                 ┆ 107.5         │
+│ 1195293    ┆ 2010-06-20 20:41:33 ┆ TEMP               ┆ 100.400002    │
+│ 1195293    ┆ 2010-06-20 20:50:04 ┆ DISCHARGE          ┆ null          │
+└────────────┴─────────────────────┴────────────────────┴───────────────┘
+>>> get_event_indices(train_0.filter(pl.col("subject_id") == 1195293))
+shape: (9, 4)
+┌────────────┬─────────────────────┬───────────┬────────────────┐
+│ subject_id ┆ time                ┆ event_idx ┆ n_measurements │
+│ ---        ┆ ---                 ┆ ---       ┆ ---            │
+│ i64        ┆ datetime[μs]        ┆ u32       ┆ u32            │
+╞════════════╪═════════════════════╪═══════════╪════════════════╡
+│ 1195293    ┆ null                ┆ 0         ┆ 2              │
+│ 1195293    ┆ 1978-06-20 00:00:00 ┆ 1         ┆ 1              │
+│ 1195293    ┆ 2010-06-20 19:23:52 ┆ 2         ┆ 3              │
+│ 1195293    ┆ 2010-06-20 19:25:32 ┆ 3         ┆ 2              │
+│ 1195293    ┆ 2010-06-20 19:45:19 ┆ 4         ┆ 2              │
+│ 1195293    ┆ 2010-06-20 20:12:31 ┆ 5         ┆ 2              │
+│ 1195293    ┆ 2010-06-20 20:24:44 ┆ 6         ┆ 2              │
+│ 1195293    ┆ 2010-06-20 20:41:33 ┆ 7         ┆ 2              │
+│ 1195293    ┆ 2010-06-20 20:50:04 ┆ 8         ┆ 1              │
+└────────────┴─────────────────────┴───────────┴────────────────┘
+
+```
+
+This behavior is set the way it is because we have `config.do_flatten_tensors` set to `True`; if we didn't, we
+would sample at the level of event sequences, not measurement sequences.
+
 ## 📚 Documentation
 
 ### Design Principles

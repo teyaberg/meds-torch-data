@@ -321,7 +321,12 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         return subject_dynamic_data
 
     def load_subject(
-        self, subject_dynamic_data, subject_id: int, global_st: int, global_end: int, seed: int | None = None
+        self,
+        subject_dynamic_data: JointNestedRaggedTensorDict,
+        subject_id: int,
+        global_st: int,
+        global_end: int,
+        seed: int | None = None,
     ) -> dict[str, list[float]]:
         """Load and process data for a single subject.
 

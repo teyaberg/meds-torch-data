@@ -167,14 +167,6 @@ class MEDSTorchDataConfig:
 
     # Output Shape & Masking
     do_flatten_tensors: bool = True
-    do_include_event_mask: bool = True
-
-    # Include Metadata in batches
-    do_include_subject_id: bool = False
-    do_include_subsequence_indices: bool = False
-    do_include_start_time: bool = False
-    do_include_end_time: bool = False
-    do_include_prediction_time: bool = False
 
     def __post_init__(self):
         self.tensorized_cohort_dir = Path(self.tensorized_cohort_dir)

@@ -158,7 +158,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 )
                 .rename({"code": "static_indices", "numeric_value": "static_values"})
                 .with_columns(
-                    pl.col("static_values").list.eval(pl.element().fill_null(0)),
+                    pl.col("static_values").list.eval(pl.element().fill_null(np.nan)),
                     pl.col("static_indices").list.eval(pl.element().fill_null(0)),
                 )
             )
@@ -259,9 +259,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 - numeric_value: List of dynamic numeric values.
                 - numeric_value_mask: Mask of numeric values (False means no numeric value was recorded)
                 - time_delta_days: List of dynamic time deltas between observations.
-                - static_indices(Optional): List of static MEDS codes.
-                - static_values(Optional): List of static MEDS numeric values.
-                - static_mask(Optional): List of static masks (True means the value is static).
+                - static_indices (Optional): List of static MEDS codes.
+                - static_values (Optional): List of static MEDS numeric values.
         """
         return self._seeded_getitem(idx)
 
@@ -273,10 +272,33 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         """
 
         subject_id, st, end = self.index[idx]
-        dynamic_data = self.load_subject_dynamic_data(subject_id, st, end)
 
-        out = self.load_subject(dynamic_data, subject_id, st, end, seed=seed)
+        shard = self.subj_map[subject_id]
+        subject_idx = self.subj_indices[subject_id]
+        static_row = self.static_dfs[shard][subject_idx].to_dict()
 
+        out = {
+            "static_indices": static_row["static_indices"].item().to_list(),
+            "static_values": static_row["static_values"].item().to_list(),
+        }
+
+        dynamic_data, st_offset, end_offset_from_st = self.slice_dynamic_data(
+            self.load_subject_dynamic_data(subject_id, st, end), seed=seed
+        )
+
+        out["dynamic"] = dynamic_data
+
+        global_st = st + st_offset
+        global_end = global_st + end_offset_from_st
+
+        if self.config.do_include_subsequence_indices:
+            out["start_idx"] = global_st
+            out["end_idx"] = global_end
+
+        if self.config.do_include_start_time:
+            out["start_time"] = static_row["time"].item().to_list()[global_st]
+        if self.config.do_include_end_time:
+            out["end_time"] = static_row["time"].item().to_list()[global_end - 1]
         if self.config.do_include_subject_id:
             out["subject_id"] = subject_id
         if self.config.do_include_prediction_time:
@@ -320,47 +342,24 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         return subject_dynamic_data
 
-    def load_subject(
+    def slice_dynamic_data(
         self,
         subject_dynamic_data: JointNestedRaggedTensorDict,
-        subject_id: int,
-        global_st: int,
-        global_end: int,
         seed: int | None = None,
-    ) -> dict[str, list[float]]:
+    ) -> tuple[JointNestedRaggedTensorDict, int, int]:
         """Load and process data for a single subject.
 
         Args:
             subject_dynamic_data: The dynamic data for the subject.
-            subject_id (int): The ID of the subject to load.
-            global_st (int): The start index of the sequence to load.
-            global_end (int): The end index of the sequence to load.
+            seed: The random seed to use for subsequence sampling.
 
         Returns:
             dict: A dictionary containing the processed data for the subject.
 
         Examples:
         """
-        shard = self.subj_map[subject_id]
-        subject_idx = self.subj_indices[subject_id]
-        static_row = self.static_dfs[shard][subject_idx].to_dict()
 
         max_seq_len = self.config.max_seq_len
-
-        out = {
-            "static_indices": static_row["static_indices"].item().to_list(),
-            "static_values": static_row["static_values"].item().to_list(),
-        }
-
-        if self.config.static_inclusion_mode == StaticInclusionMode.PREPEND:
-            n_static = len(out["static_indices"])
-            if n_static >= max_seq_len:
-                raise ValueError(
-                    f"Static data length {n_static} matches or exceeds "
-                    f"max_seq_len {max_seq_len} for subject {subject_id}!"
-                )
-
-            max_seq_len -= n_static
 
         if self.config.do_flatten_tensors:
             # Store original lengths for each time step before flattening
@@ -379,48 +378,12 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         if self.config.do_flatten_tensors:
             # Map flattened indices back to original time indices
-            new_global_st = global_st + np.searchsorted(cum_lens, st_offset, side="right").item()
-            new_global_end = global_st + np.searchsorted(cum_lens, end, side="right").item()
+            st_offset = np.searchsorted(cum_lens, st_offset, side="right").item()
+            end_offset_from_st = np.searchsorted(cum_lens, end, side="right").item() - st_offset
         else:
-            new_global_st = global_st + st_offset
-            new_global_end = new_global_st + len(subject_dynamic_data)
+            end_offset_from_st = len(subject_dynamic_data)
 
-        global_st = new_global_st
-        global_end = new_global_end
-
-        if self.config.do_include_subsequence_indices:
-            out["start_idx"] = global_st
-            out["end_idx"] = global_end
-
-        tensors = subject_dynamic_data.tensors
-
-        if self.config.static_inclusion_mode == StaticInclusionMode.PREPEND:
-            tensors["dim0/time_delta_days"] = np.concatenate(
-                [np.zeros(len(out["static_indices"])), tensors["dim0/time_delta_days"]]
-            )
-            tensors["dim0/static_mask"] = np.concatenate(
-                [
-                    np.ones(len(out["static_indices"]), dtype=bool),
-                    np.zeros(len(tensors["dim0/code"]), dtype=bool),
-                ]
-            )
-            tensors["dim0/code"] = np.concatenate([out["static_indices"], tensors["dim0/code"]])
-            tensors["dim0/numeric_value"] = np.concatenate(
-                [out["static_values"], tensors["dim0/numeric_value"]]
-            )
-        else:
-            tensors["dim0/static_mask"] = np.zeros(len(tensors["dim0/code"]), dtype=bool)
-
-        subject_dynamic_data = JointNestedRaggedTensorDict(processed_tensors=tensors)
-
-        out["dynamic"] = subject_dynamic_data
-
-        if self.config.do_include_start_time:
-            out["start_time"] = static_row["time"].item().to_list()[global_st]
-        if self.config.do_include_end_time:
-            out["end_time"] = static_row["time"].item().to_list()[global_end - 1]
-
-        return out
+        return subject_dynamic_data, st_offset, end_offset_from_st
 
     def collate(self, batch: list[dict]) -> MEDSTorchBatch:
         """Combines a batch of data points into a single, tensorized batch.
@@ -448,8 +411,12 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                                       [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]]),
              'numeric_value_mask': tensor([[False, False,  True,  True, False],
                                            [False, False,  True,  True, False]]),
-             'static_mask': tensor([[False, False, False, False, False],
-                                    [False, False, False, False, False]])}
+             'static_code': tensor([[8, 9],
+                                    [8, 9]]),
+             'static_numeric_value': tensor([[ 0.0000, -0.5438],
+                                             [ 0.0000, -1.1012]]),
+             'static_numeric_value_mask': tensor([[False,  True],
+                                                  [False,  True]])}
             >>> batch = [sample_pytorch_dataset_with_task[0], sample_pytorch_dataset_with_task[1]]
             >>> sample_pytorch_dataset_with_task.collate(batch) # doctest: +NORMALIZE_WHITESPACE
             {'time_delta_days': tensor([[0.0000e+00, 1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
@@ -466,8 +433,12 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                                         -1.1680e+00,  1.3220e-03, -1.3749e+00]]),
              'numeric_value_mask': tensor([[False, False,  True,  True,  True,  True,  True,  True],
                                            [False, False,  True,  True,  True,  True,  True,  True]]),
-             'static_mask': tensor([[False, False, False, False, False, False, False, False],
-                                    [False, False, False, False, False, False, False, False]]),
+             'static_code': tensor([[7, 9],
+                                    [7, 9]]),
+             'static_numeric_value': tensor([[0.0000, 1.5770],
+                                             [0.0000, 1.5770]]),
+             'static_numeric_value_mask': tensor([[False,  True],
+                                                  [False,  True]]),
              'boolean_value': tensor([False,  True])}
         """
 
@@ -480,11 +451,27 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         out["mask"] = tensorized.pop("dim1/mask")
         out["numeric_value"] = torch.nan_to_num(tensorized["numeric_value"], nan=0).float()
         out["numeric_value_mask"] = ~torch.isnan(tensorized.pop("numeric_value"))
-        out["static_mask"] = tensorized.pop("static_mask")
+
+        match self.config.static_inclusion_mode:
+            case StaticInclusionMode.OMIT:
+                pass
+            case StaticInclusionMode.INCLUDE:
+                static_data = JointNestedRaggedTensorDict(
+                    {
+                        "static_code": [item["static_indices"] for item in batch],
+                        "static_numeric_value": [item["static_values"] for item in batch],
+                    }
+                ).to_dense()
+                static_tensorized = {k: torch.as_tensor(v) for k, v in static_data.items()}
+                out["static_code"] = static_tensorized.pop("static_code").long()
+                out["static_numeric_value"] = torch.nan_to_num(
+                    static_tensorized["static_numeric_value"], nan=0
+                ).float()
+                out["static_numeric_value_mask"] = ~torch.isnan(static_tensorized["static_numeric_value"])
 
         # Add task labels to batch
         for k in batch[0].keys():
-            if k not in ("dynamic", "static_values", "static_indices", "static_mask"):
+            if k not in ("dynamic", "static_values", "static_indices"):
                 if isinstance(batch[0][k], datetime):
                     out[k] = [item[k] for item in batch]
                 elif k == BINARY_LABEL_COL:

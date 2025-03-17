@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -55,6 +54,27 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
     For examples of this class, see the global README.md. Here, we'll include some examples of other aspects
     of the class, such as error validation and specific methods.
+
+    Examples:
+
+        If you load the dataset from real data, things work fine.
+
+        >>> cfg = MEDSTorchDataConfig(tensorized_cohort_dir=tensorized_MEDS_dataset, max_seq_len=5)
+        >>> pyd = MEDSPytorchDataset(cfg, split="train")
+        >>> len(pyd)
+        4
+        >>> pyd.index
+        [(68729, 0, 3), (814703, 0, 3), (239684, 0, 6), (1195293, 0, 8)]
+
+        If you pass in a non-existent split, you'll get an error as it won't be able to find the schema files:
+
+        >>> pyd = MEDSPytorchDataset(cfg, split="nonexistent") # doctest: +NORMALIZE_WHITESPACE
+        Traceback (most recent call last):
+            ...
+        FileNotFoundError: No schema files found in /tmp/.../tokenization/schemas! If your data is not sharded
+        by split, this error may occur because this codebase does not handle non-split sharded data. See Issue
+        #79 for tracking this issue.
+
     """
 
     @staticmethod
@@ -169,9 +189,6 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
             n_events = df.select(pl.col("time").list.len().alias("n_events")).get_column("n_events")
             for i, (subj, n_events_count) in enumerate(zip(subject_ids, n_events)):
-                if subj in self.subj_indices or subj in self.subj_seq_bounds:
-                    raise ValueError(f"Duplicate subject {subj} in {shard}!")
-
                 self.subj_indices[subj] = i
                 self.subj_seq_bounds[subj] = (0, n_events_count)
 
@@ -403,6 +420,24 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
              'static_numeric_value_mask': tensor([[False,  True],
                                                   [False,  True]]),
              'boolean_value': tensor([False,  True])}
+
+            Static data can also be omitted if set in the config.
+
+            >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.OMIT
+            >>> batch = [sample_pytorch_dataset[0], sample_pytorch_dataset[1]]
+            >>> sample_pytorch_dataset.collate(batch) # doctest: +NORMALIZE_WHITESPACE
+            {'time_delta_days': tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
+                                        [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]]),
+             'code': tensor([[ 5,  3, 10, 11,  4],
+                             [ 5,  2, 10, 11,  4]]),
+             'mask': tensor([[True, True, True, True, True],
+                             [True, True, True, True, True]]),
+             'numeric_value': tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],
+                                      [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]]),
+             'numeric_value_mask': tensor([[False, False,  True,  True, False],
+                                           [False, False,  True,  True, False]])}
+
+            >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.INCLUDE
         """
 
         data = JointNestedRaggedTensorDict.vstack([item["dynamic"] for item in batch]).to_dense()
@@ -432,24 +467,38 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 ).float()
                 out["static_numeric_value_mask"] = ~torch.isnan(static_tensorized["static_numeric_value"])
 
-        # Add task labels to batch
-        for k in batch[0].keys():
-            if k not in ("dynamic", "static_values", "static_indices"):
-                if isinstance(batch[0][k], datetime):
-                    out[k] = [item[k] for item in batch]
-                elif k == BINARY_LABEL_COL:
-                    out[k] = torch.Tensor([item[k] for item in batch]).bool()
-                else:
-                    out[k] = torch.Tensor([item[k] for item in batch])
+        if self.has_task:
+            out[BINARY_LABEL_COL] = torch.Tensor([item[BINARY_LABEL_COL] for item in batch]).bool()
+
         return out
 
     def get_dataloader(self, **kwargs) -> torch.utils.data.DataLoader:
-        """Constructs a PyTorch DataLoader for this dataset.
+        """Constructs a PyTorch DataLoader for this dataset using the dataset's custom collate function.
 
         Args:
             **kwargs: Additional arguments to pass to the DataLoader constructor.
 
         Returns:
             torch.utils.data.DataLoader: A DataLoader object for this dataset.
+
+        Examples:
+            >>> DL = sample_pytorch_dataset.get_dataloader(batch_size=2, shuffle=False)
+            >>> next(iter(DL)) # doctest: +NORMALIZE_WHITESPACE
+            {'time_delta_days': tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
+                                        [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]]),
+             'code': tensor([[ 5,  3, 10, 11,  4],
+                             [ 5,  2, 10, 11,  4]]),
+             'mask': tensor([[True, True, True, True, True],
+                             [True, True, True, True, True]]),
+             'numeric_value': tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],
+                                      [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]]),
+             'numeric_value_mask': tensor([[False, False,  True,  True, False],
+                                           [False, False,  True,  True, False]]),
+             'static_code': tensor([[8, 9],
+                                    [8, 9]]),
+             'static_numeric_value': tensor([[ 0.0000, -0.5438],
+                                             [ 0.0000, -1.1012]]),
+             'static_numeric_value_mask': tensor([[False,  True],
+                                                  [False,  True]])}
         """
         return torch.utils.data.DataLoader(self, collate_fn=self.collate, **kwargs)

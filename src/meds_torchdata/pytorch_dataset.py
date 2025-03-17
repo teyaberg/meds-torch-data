@@ -7,7 +7,6 @@ import torch
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
 from .config import (
-    MEDSTorchBatch,
     MEDSTorchDataConfig,
     StaticInclusionMode,
     SubsequenceSamplingStrategy,
@@ -362,7 +361,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         end = min(seq_len, st + self.config.max_seq_len)
         return subject_dynamic_data[st:end]
 
-    def collate(self, batch: list[dict]) -> MEDSTorchBatch:
+    def collate(self, batch: list[dict]) -> dict[str, torch.Tensor]:
         """Combines a batch of data points into a single, tensorized batch.
 
         The collated output is a fully tensorized and padded dictionary, ready for input into an

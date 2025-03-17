@@ -27,6 +27,7 @@ markdown_extensions:
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.superfences
+  - callouts
 
 extra_javascript:
   - javascripts/mathjax.js
@@ -43,6 +44,3 @@ plugins:
   - mkdocstrings
   - git-authors
   - git-revision-date-localized
-  - admonition
-  - pymdownx.details
-  - pymdownx.superfences

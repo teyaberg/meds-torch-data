@@ -282,35 +282,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             "static_values": static_row["static_values"].item().to_list(),
         }
 
-        dynamic_data, st_offset, end_offset_from_st = self.slice_dynamic_data(
-            self.load_subject_dynamic_data(subject_id, st, end), seed=seed
-        )
-
-        out["dynamic"] = dynamic_data
-
-        global_st = st + st_offset
-        global_end = global_st + end_offset_from_st
-
-        if self.config.do_include_subsequence_indices:
-            out["start_idx"] = global_st
-            out["end_idx"] = global_end
-
-        if self.config.do_include_start_time:
-            out["start_time"] = static_row["time"].item().to_list()[global_st]
-        if self.config.do_include_end_time:
-            out["end_time"] = static_row["time"].item().to_list()[global_end - 1]
-        if self.config.do_include_subject_id:
-            out["subject_id"] = subject_id
-        if self.config.do_include_prediction_time:
-            if not self.has_task:
-                if not self.config.do_include_end_time:
-                    raise ValueError(
-                        "Cannot include prediction_time without a task specified or do_include_end_time!"
-                    )
-                else:
-                    out["prediction_time"] = out["end_time"]
-            else:
-                out["prediction_time"] = self.prediction_times[idx]
+        raw_subj_data = self.load_subject_dynamic_data(subject_id, st, end)
+        out["dynamic"] = self.slice_dynamic_data(raw_subj_data, seed=seed)
 
         if self.labels is not None:
             out[BINARY_LABEL_COL] = self.labels[idx]
@@ -346,7 +319,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         self,
         subject_dynamic_data: JointNestedRaggedTensorDict,
         seed: int | None = None,
-    ) -> tuple[JointNestedRaggedTensorDict, int, int]:
+    ) -> JointNestedRaggedTensorDict:
         """Load and process data for a single subject.
 
         Args:
@@ -354,7 +327,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             seed: The random seed to use for subsequence sampling.
 
         Returns:
-            dict: A dictionary containing the processed data for the subject.
+            The sliced dynamic data, followed by the start offset from the provided data and the end offset
+                relative to the output start of the provided data.
 
         Examples:
         """
@@ -362,8 +336,6 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         max_seq_len = self.config.max_seq_len
 
         if self.config.do_flatten_tensors:
-            # Store original lengths for each time step before flattening
-            cum_lens = subject_dynamic_data.tensors["dim1/bounds"]
             subject_dynamic_data = subject_dynamic_data.flatten()
 
         seq_len = len(subject_dynamic_data)
@@ -374,16 +346,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             st_offset = 0
 
         end = min(seq_len, st_offset + max_seq_len)
-        subject_dynamic_data = subject_dynamic_data[st_offset:end]
-
-        if self.config.do_flatten_tensors:
-            # Map flattened indices back to original time indices
-            st_offset = np.searchsorted(cum_lens, st_offset, side="right").item()
-            end_offset_from_st = np.searchsorted(cum_lens, end, side="right").item() - st_offset
-        else:
-            end_offset_from_st = len(subject_dynamic_data)
-
-        return subject_dynamic_data, st_offset, end_offset_from_st
+        return subject_dynamic_data[st_offset:end]
 
     def collate(self, batch: list[dict]) -> MEDSTorchBatch:
         """Combines a batch of data points into a single, tensorized batch.

@@ -1,51 +1,19 @@
-site_name: meds-torch
-repo_url: https://github.com/oufattole/meds-torch
-site_description: Documentation for the MEDS torch package
-site_author: Nassim Oufattole
+site_name: meds-torch-data
+repo_url: https://github.com/mmcdermott/meds-torch-data
+site_description: Documentation for the meds-torch-data package
+site_author: Matthew McDermott
 
 nav:
   - Home: index.md
-  - "Inductive Experiments": inductive_experiments.md
-  - "Terminology": terminology.md
-  - "Input Encoding Methods": input_encoding_methods.md
-  - API Reference: reference/api/
-  - Config Reference: reference/config/
-  - Issues: https://github.com/oufattole/meds-torch/issues
+  - API: api/
+  - Issues: https://github.com/mmcdermott/meds-torch-data/issues
 
 theme:
-  features:
-    - announce.dismiss
-    - content.action.edit
-    - content.action.view
-    - content.code.annotate
-    - content.code.copy
-  custom_dir: docs/overrides
-  logo: assets/light_logo.png
   name: material
   locale: en
-  palette:
-    - media: "(prefers-color-scheme)"
-      toggle:
-        icon: material/link
-        name: Switch to light mode
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/toggle-switch
-        name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: black
-      accent: indigo
-      toggle:
-        icon: material/toggle-switch-off
-        name: Switch to system preference
   font:
     text: Roboto
     code: Roboto Mono
-  favicon: assets/light_logo.png
 
 markdown_extensions:
   - smarty

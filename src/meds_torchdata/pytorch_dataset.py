@@ -300,7 +300,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         }
 
         raw_subj_data = self.load_subject_dynamic_data(subject_id, st, end)
-        out["dynamic"] = self.slice_dynamic_data(raw_subj_data, seed=seed)
+        out["dynamic"] = self.process_dynamic_data(raw_subj_data, seed=seed)
 
         if self.labels is not None:
             out[BINARY_LABEL_COL] = self.labels[idx]
@@ -332,38 +332,35 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         return subject_dynamic_data
 
-    def slice_dynamic_data(
+    def process_dynamic_data(
         self,
         subject_dynamic_data: JointNestedRaggedTensorDict,
         seed: int | None = None,
     ) -> JointNestedRaggedTensorDict:
-        """Load and process data for a single subject.
+        """This processes the dynamic data for a subject, including subsampling and flattening.
 
         Args:
             subject_dynamic_data: The dynamic data for the subject.
-            seed: The random seed to use for subsequence sampling.
+            seed: The random seed to use for subsequence sampling. If `None`, the default rng is used.
 
         Returns:
-            The sliced dynamic data, followed by the start offset from the provided data and the end offset
-                relative to the output start of the provided data.
+            The processed dynamic data, still in a `JointNestedRaggedTensorDict` format.
 
         Examples:
         """
-
-        max_seq_len = self.config.max_seq_len
 
         if self.config.do_flatten_tensors:
             subject_dynamic_data = subject_dynamic_data.flatten()
 
         seq_len = len(subject_dynamic_data)
-        st_offset = SubsequenceSamplingStrategy.subsample_st_offset(
-            self.config.seq_sampling_strategy, seq_len, max_seq_len, rng=seed
+        st = SubsequenceSamplingStrategy.subsample_st_offset(
+            self.config.seq_sampling_strategy, seq_len, self.config.max_seq_len, rng=seed
         )
-        if st_offset is None:
-            st_offset = 0
+        if st is None:
+            st = 0
 
-        end = min(seq_len, st_offset + max_seq_len)
-        return subject_dynamic_data[st_offset:end]
+        end = min(seq_len, st + self.config.max_seq_len)
+        return subject_dynamic_data[st:end]
 
     def collate(self, batch: list[dict]) -> MEDSTorchBatch:
         """Combines a batch of data points into a single, tensorized batch.

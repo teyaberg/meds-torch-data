@@ -43,3 +43,6 @@ plugins:
   - mkdocstrings
   - git-authors
   - git-revision-date-localized
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences

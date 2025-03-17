@@ -111,9 +111,7 @@ def benchmark(dataset, batch_size: int, num_epochs: int = 1) -> tuple[dict[str, 
 @pytest.mark.parametrize("batch_size", [256])
 @pytest.mark.parametrize("max_seq_len", [512])
 @pytest.mark.parametrize("num_epochs", [5])
-def test_profile(
-    tensorized_MEDS_dataset: tuple[Path, Path], batch_size: int, max_seq_len: int, num_epochs: int
-):
+def test_profile(benchmark_dataset: Path, batch_size: int, max_seq_len: int, num_epochs: int):
     methods_to_track = ["__getitem__", "collate", "read_subject_descriptors"]
 
     TrackableDataset = add_mixin(
@@ -123,7 +121,7 @@ def test_profile(
     )
 
     config = MEDSTorchDataConfig(
-        tensorized_cohort_dir=tensorized_MEDS_dataset[1],
+        tensorized_cohort_dir=benchmark_dataset,
         max_seq_len=max_seq_len,
     )
 

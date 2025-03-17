@@ -33,7 +33,7 @@ def _test_dir(request):
 
 
 @pytest.fixture(scope="session")
-def tensorized_MEDS_dataset(request, generated_sample_MEDS: Path) -> tuple[Path, Path]:
+def benchmark_dataset(request, generated_sample_MEDS: Path) -> Path:
     with _test_dir(request) as cohort_dir:
         command = [
             str(PREPROCESS_SCRIPT),

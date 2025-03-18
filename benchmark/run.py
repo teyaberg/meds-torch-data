@@ -112,7 +112,7 @@ def benchmark(dataset, batch_size: int, num_epochs: int = 1) -> tuple[dict[str, 
 @pytest.mark.parametrize("max_seq_len", [512])
 @pytest.mark.parametrize("num_epochs", [5])
 def test_profile(benchmark_dataset: Path, batch_size: int, max_seq_len: int, num_epochs: int):
-    methods_to_track = ["__getitem__", "collate", "read_subject_descriptors"]
+    methods_to_track = ["__getitem__", "collate"]
 
     TrackableDataset = add_mixin(
         add_mixin(MEDSPytorchDataset, TimeableMixin, {m: TimeableMixin.TimeAs for m in methods_to_track}),

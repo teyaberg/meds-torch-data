@@ -3,6 +3,7 @@
 
 import subprocess
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -89,6 +90,8 @@ def _setup_doctest_namespace(
 ):
     doctest_namespace.update(
         {
+            "datetime": datetime,
+            "tempfile": tempfile,
             "simple_static_MEDS": simple_static_MEDS,
             "simple_static_MEDS_dataset_with_task": simple_static_MEDS_dataset_with_task,
             "tensorized_MEDS_dataset": tensorized_MEDS_dataset,

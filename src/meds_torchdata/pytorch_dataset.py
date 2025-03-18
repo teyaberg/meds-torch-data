@@ -287,28 +287,20 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         subsequence sampling.
         """
 
-        subject_id, st, end = self.index[idx]
+        dynamic_data, static_data = self.load_subject_data(*self.index[idx])
 
-        shard = self.subj_map[subject_id]
-        subject_idx = self.subj_indices[subject_id]
-        static_row = self.static_dfs[shard][subject_idx].to_dict()
+        out = {"static_indices": static_data[0], "static_values": static_data[1]}
 
-        out = {
-            "static_indices": static_row["static_indices"].item().to_list(),
-            "static_values": static_row["static_values"].item().to_list(),
-        }
+        out["dynamic"] = self.process_dynamic_data(dynamic_data, seed=seed)
 
-        raw_subj_data = self.load_subject_dynamic_data(subject_id, st, end)
-        out["dynamic"] = self.process_dynamic_data(raw_subj_data, seed=seed)
-
-        if self.labels is not None:
+        if self.has_task:
             out[BINARY_LABEL_COL] = self.labels[idx]
 
         return out
 
-    def load_subject_dynamic_data(
+    def load_subject_data(
         self, subject_id: int, st: int | None, end: int | None
-    ) -> JointNestedRaggedTensorDict:
+    ) -> tuple[JointNestedRaggedTensorDict, list[int], list[float | None]]:
         """Loads and returns the dynamic data slice for a given subject ID and permissible event range.
 
         Args:
@@ -319,17 +311,19 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                  read for this subject's record. If None, no limit is applied.
 
         Returns:
-            A `JointNestedRaggedTensorDict` object containing the dynamic data for the permissible range for
-            the given subject.
+            The subject's dynamic data, static indices, and static_values
         """
         shard = self.subj_map[subject_id]
         subject_idx = self.subj_indices[subject_id]
 
         dynamic_data_fp = self.config.tensorized_cohort_dir / "data" / f"{shard}.nrt"
-
         subject_dynamic_data = JointNestedRaggedTensorDict(tensors_fp=dynamic_data_fp)[subject_idx, st:end]
 
-        return subject_dynamic_data
+        static_row = self.static_dfs[shard][subject_idx].to_dict()
+        static_indices = static_row["static_indices"].item().to_list()
+        static_values = static_row["static_values"].item().to_list()
+
+        return subject_dynamic_data, (static_indices, static_values)
 
     def process_dynamic_data(
         self,

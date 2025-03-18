@@ -121,8 +121,6 @@ it in dataframe format via the `schema_df`:
 4
 >>> pyd.index
 [(68729, 3), (814703, 3), (239684, 6), (1195293, 8)]
->>> pyd.subject_ids
-[68729, 814703, 239684, 1195293]
 >>> pyd.schema_df
 shape: (4, 2)
 ┌────────────┬─────────────────┐

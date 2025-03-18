@@ -5,7 +5,6 @@ def test_dataset(sample_pytorch_dataset: MEDSPytorchDataset):
     pyd = sample_pytorch_dataset
 
     assert len(pyd) == 4, "The dataset should have 4 samples corresponding to the train subjects."
-    assert set(pyd.subject_ids) == {239684, 1195293, 68729, 814703}
 
     samps = []
     for i in range(len(pyd)):

@@ -277,21 +277,6 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         else:
             return base_df.select(subject_id_field, pl.col(time_field).list.len().alias(self.END_IDX))
 
-    @property
-    def subject_ids(self) -> list[int]:
-        """Returns the list of subject IDs for whom data is returned for each index. May have duplicates.
-
-        Examples:
-            >>> sample_pytorch_dataset.subject_ids
-            [68729, 814703, 239684, 1195293]
-            >>> sample_pytorch_dataset_with_task.subject_ids # doctest: +NORMALIZE_WHITESPACE
-            [239684, 239684, 239684,
-             1195293, 1195293, 1195293,
-             68729, 68729, 68729, 68729,
-             814703, 814703, 814703]
-        """
-        return [x[0] for x in self.index]
-
     def __len__(self):
         """Returns the length of the dataset.
 

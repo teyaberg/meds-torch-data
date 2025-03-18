@@ -22,6 +22,40 @@ def resolve_rng(rng: np.random.Generator | int | None) -> np.random.Generator:
 
     Returns:
         A random number generator.
+
+    Raises:
+        ValueError: If the random number generator is not a valid type.
+
+    Examples:
+        >>> rng = resolve_rng(None)
+        >>> isinstance(rng, np.random.Generator)
+        True
+
+        You can pass a seed, at which point it is deterministic.
+
+        >>> rng = resolve_rng(1)
+        >>> isinstance(rng, np.random.Generator)
+        True
+        >>> rng.random()
+        0.5118216247002567
+        >>> rng.random()
+        0.9504636963259353
+        >>> resolve_rng(1).random()
+        0.5118216247002567
+        >>> resolve_rng(2).random()
+        0.2616121342493164
+
+        You can also pass a generator directly.
+
+        >>> resolve_rng(np.random.default_rng(1)).random()
+        0.5118216247002567
+
+        Passing an invalid type raises an error.
+
+        >>> resolve_rng("foo")
+        Traceback (most recent call last):
+            ...
+        ValueError: Invalid random number generator: foo!
     """
 
     match rng:
@@ -198,7 +232,7 @@ class MEDSTorchDataConfig:
         match self.static_inclusion_mode:
             case str() if self.static_inclusion_mode in {x.value for x in StaticInclusionMode}:
                 self.static_inclusion_mode = StaticInclusionMode(self.static_inclusion_mode)
-            case StaticInclusionMode():
+            case StaticInclusionMode():  # pragma: no cover
                 pass
             case _:
                 raise ValueError(f"Invalid static inclusion mode: {self.static_inclusion_mode}")
@@ -206,7 +240,7 @@ class MEDSTorchDataConfig:
         match self.seq_sampling_strategy:
             case str() if self.seq_sampling_strategy in {x.value for x in SubsequenceSamplingStrategy}:
                 self.seq_sampling_strategy = SubsequenceSamplingStrategy(self.seq_sampling_strategy)
-            case SubsequenceSamplingStrategy():
+            case SubsequenceSamplingStrategy():  # pragma: no cover
                 pass
             case _:
                 raise ValueError(f"Invalid subsequence sampling strategy: {self.seq_sampling_strategy}")

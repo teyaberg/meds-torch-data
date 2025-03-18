@@ -6,11 +6,7 @@ import polars as pl
 import torch
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
-from .config import (
-    MEDSTorchDataConfig,
-    StaticInclusionMode,
-    SubsequenceSamplingStrategy,
-)
+from .config import MEDSTorchDataConfig, StaticInclusionMode
 
 logger = logging.getLogger(__name__)
 
@@ -291,7 +287,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         out = {"static_indices": static_data[0], "static_values": static_data[1]}
 
-        out["dynamic"] = self.process_dynamic_data(dynamic_data, seed=seed)
+        out["dynamic"] = self.config.process_dynamic_data(dynamic_data, rng=seed)
 
         if self.has_task:
             out[BINARY_LABEL_COL] = self.labels[idx]
@@ -300,7 +296,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
     def load_subject_data(
         self, subject_id: int, st: int | None, end: int | None
-    ) -> tuple[JointNestedRaggedTensorDict, list[int], list[float | None]]:
+    ) -> tuple[JointNestedRaggedTensorDict, tuple[list[int], list[float | None]]]:
         """Loads and returns the dynamic data slice for a given subject ID and permissible event range.
 
         Args:
@@ -324,36 +320,6 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         static_values = static_row["static_values"].item().to_list()
 
         return subject_dynamic_data, (static_indices, static_values)
-
-    def process_dynamic_data(
-        self,
-        subject_dynamic_data: JointNestedRaggedTensorDict,
-        seed: int | None = None,
-    ) -> JointNestedRaggedTensorDict:
-        """This processes the dynamic data for a subject, including subsampling and flattening.
-
-        Args:
-            subject_dynamic_data: The dynamic data for the subject.
-            seed: The random seed to use for subsequence sampling. If `None`, the default rng is used.
-
-        Returns:
-            The processed dynamic data, still in a `JointNestedRaggedTensorDict` format.
-
-        Examples:
-        """
-
-        if self.config.do_flatten_tensors:
-            subject_dynamic_data = subject_dynamic_data.flatten()
-
-        seq_len = len(subject_dynamic_data)
-        st = SubsequenceSamplingStrategy.subsample_st_offset(
-            self.config.seq_sampling_strategy, seq_len, self.config.max_seq_len, rng=seed
-        )
-        if st is None:
-            st = 0
-
-        end = min(seq_len, st + self.config.max_seq_len)
-        return subject_dynamic_data[st:end]
 
     def collate(self, batch: list[dict]) -> dict[str, torch.Tensor]:
         """Combines a batch of data points into a single, tensorized batch.

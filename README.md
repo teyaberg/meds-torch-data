@@ -299,6 +299,112 @@ time_delta_days
 
 ```
 
+We can also examine not just individual elements, but full batches, that we can access with the appropriate
+`collate` function via the built in `get_dataloader` method:
+
+```python
+>>> print_element(next(iter(pyd.get_dataloader(batch_size=2))))
+time_delta_days (Tensor):
+tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
+        [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]])
+code (Tensor):
+tensor([[ 5,  3, 10, 11,  4],
+        [ 5,  2, 10, 11,  4]])
+mask (Tensor):
+tensor([[True, True, True, True, True],
+        [True, True, True, True, True]])
+numeric_value (Tensor):
+tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],
+        [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]])
+numeric_value_mask (Tensor):
+tensor([[False, False,  True,  True, False],
+        [False, False,  True,  True, False]])
+static_code (Tensor):
+tensor([[8, 9],
+        [8, 9]])
+static_numeric_value (Tensor):
+tensor([[ 0.0000, -0.5438],
+        [ 0.0000, -1.1012]])
+static_numeric_value_mask (Tensor):
+tensor([[False,  True],
+        [False,  True]])
+
+```
+
+Thus far, our examples have all worked with the default config object, which sets (among other things) the
+default output to be at a _measurement_ level, rather than an _event_ level, by virtue of setting
+`do_flatten_tensors` to `True`. Let's see what happens if we change that:
+
+```python
+>>> pyd.config.do_flatten_tensors = False
+>>> print_element(pyd[0])
+static_indices (list):
+[8, 9]
+static_values (list):
+[nan, -0.5438239574432373]
+dynamic (JointNestedRaggedTensorDict):
+time_delta_days
+[           nan 1.17661045e+04 9.78703722e-02]
+.
+---
+.
+dim1/mask
+[[ True False False]
+ [ True  True  True]
+ [ True False False]]
+.
+code
+[[ 5  0  0]
+ [ 3 10 11]
+ [ 4  0  0]]
+.
+numeric_value
+[[        nan  0.          0.        ]
+ [        nan -1.4474752  -0.34049404]
+ [        nan  0.          0.        ]]
+>>> print_element(next(iter(pyd.get_dataloader(batch_size=2))))
+time_delta_days (Tensor):
+tensor([[0.0000e+00, 1.1766e+04, 9.7870e-02],
+        [0.0000e+00, 1.2367e+04, 4.6424e-02]])
+code (Tensor):
+tensor([[[ 5,  0,  0],
+         [ 3, 10, 11],
+         [ 4,  0,  0]],
+<BLANKLINE>
+        [[ 5,  0,  0],
+         [ 2, 10, 11],
+         [ 4,  0,  0]]])
+mask (Tensor):
+tensor([[True, True, True],
+        [True, True, True]])
+numeric_value (Tensor):
+tensor([[[ 0.0000,  0.0000,  0.0000],
+         [ 0.0000, -1.4475, -0.3405],
+         [ 0.0000,  0.0000,  0.0000]],
+<BLANKLINE>
+        [[ 0.0000,  0.0000,  0.0000],
+         [ 0.0000,  3.0047,  0.8491],
+         [ 0.0000,  0.0000,  0.0000]]])
+numeric_value_mask (Tensor):
+tensor([[[False,  True,  True],
+         [False,  True,  True],
+         [False,  True,  True]],
+<BLANKLINE>
+        [[False,  True,  True],
+         [False,  True,  True],
+         [False,  True,  True]]])
+static_code (Tensor):
+tensor([[8, 9],
+        [8, 9]])
+static_numeric_value (Tensor):
+tensor([[ 0.0000, -0.5438],
+        [ 0.0000, -1.1012]])
+static_numeric_value_mask (Tensor):
+tensor([[False,  True],
+        [False,  True]])
+
+```
+
 ## 📚 Documentation
 
 ### Design Principles

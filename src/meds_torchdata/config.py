@@ -7,9 +7,7 @@ enumeration objects for categorical options and a general DataClass configuratio
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import NotRequired, TypedDict
 
-import torch
 from numpy.random import Generator, default_rng
 
 
@@ -183,26 +181,3 @@ class MEDSTorchDataConfig:
                     "If specified, task_labels_dir must be a valid directory. "
                     f"Got {str(self.task_labels_dir.resolve())}"
                 )
-
-
-class MEDSTorchBatch(TypedDict):
-    """A type hint for a batch of data from a MEDS dataset.
-
-    A dictionary containing the following keys:
-        ...
-    """
-
-    code: torch.LongTensor
-    mask: torch.BoolTensor
-    numeric_value: torch.FloatTensor
-    numeric_value_mask: torch.BoolTensor
-    time_delta: torch.FloatTensor
-
-    static_code: NotRequired[torch.LongTensor]
-    static_numeric_value: NotRequired[torch.FloatTensor]
-    static_numeric_value_mask: NotRequired[torch.BoolTensor]
-    event_mask: NotRequired[torch.BoolTensor]
-
-    subject_id: NotRequired[torch.LongTensor]
-    start_event_index: NotRequired[torch.LongTensor]
-    end_event_index: NotRequired[torch.LongTensor]

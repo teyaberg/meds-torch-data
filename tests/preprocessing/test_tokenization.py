@@ -120,8 +120,8 @@ def ts_to_time_delta_days(ts: list[list[datetime]]) -> list[list[float]]:
 
 SCHEMAS_SCHEMA = {
     "subject_id": NORMALIZED_MEDS_SCHEMA["subject_id"],
-    "code": pl.List(NORMALIZED_MEDS_SCHEMA["code"]),
-    "numeric_value": pl.List(NORMALIZED_MEDS_SCHEMA["numeric_value"]),
+    "static_code": pl.List(NORMALIZED_MEDS_SCHEMA["code"]),
+    "static_numeric_value": pl.List(NORMALIZED_MEDS_SCHEMA["numeric_value"]),
     "start_time": NORMALIZED_MEDS_SCHEMA["time"],
     "time": pl.List(NORMALIZED_MEDS_SCHEMA["time"]),
 }
@@ -156,8 +156,8 @@ TRAIN_0_TIMES = [
 WANT_SCHEMAS_TRAIN_0 = pl.DataFrame(
     {
         "subject_id": [239684, 1195293],
-        "code": [[7, 9], [6, 9]],
-        "numeric_value": [[None, 1.5770268440246582], [None, 0.06802856922149658]],
+        "static_code": [[7, 9], [6, 9]],
+        "static_numeric_value": [[None, 1.5770268440246582], [None, 0.06802856922149658]],
         "start_time": [ts[0] for ts in TRAIN_0_TIMES],
         "time": TRAIN_0_TIMES,
     },
@@ -167,8 +167,8 @@ WANT_SCHEMAS_TRAIN_0 = pl.DataFrame(
 WANT_SCHEMAS_TRAIN_0_MISSING_STATIC = pl.DataFrame(
     {
         "subject_id": [239684, 1195293],
-        "code": [None, [6, 9]],
-        "numeric_value": [None, [None, 0.06802856922149658]],
+        "static_code": [None, [6, 9]],
+        "static_numeric_value": [None, [None, 0.06802856922149658]],
         "start_time": [ts[0] for ts in TRAIN_0_TIMES],
         "time": TRAIN_0_TIMES,
     },
@@ -215,8 +215,8 @@ TRAIN_1_TIMES = [
 WANT_SCHEMAS_TRAIN_1 = pl.DataFrame(
     {
         "subject_id": [68729, 814703],
-        "code": [[8, 9], [8, 9]],
-        "numeric_value": [[None, -0.5438239574432373], [None, -1.1012336015701294]],
+        "static_code": [[8, 9], [8, 9]],
+        "static_numeric_value": [[None, -0.5438239574432373], [None, -1.1012336015701294]],
         "start_time": [ts[0] for ts in TRAIN_1_TIMES],
         "time": TRAIN_1_TIMES,
     },
@@ -241,8 +241,8 @@ TUNING_0_TIMES = [[datetime(1988, 12, 19), datetime(2010, 1, 3, 6, 27, 59), date
 WANT_SCHEMAS_TUNING_0 = pl.DataFrame(
     {
         "subject_id": [754281],
-        "code": [[7, 9]],
-        "numeric_value": [[None, 0.28697699308395386]],
+        "static_code": [[7, 9]],
+        "static_numeric_value": [[None, 0.28697699308395386]],
         "start_time": [ts[0] for ts in TUNING_0_TIMES],
         "time": TUNING_0_TIMES,
     },
@@ -275,8 +275,8 @@ HELD_OUT_0_TIMES = [
 WANT_SCHEMAS_HELD_OUT_0 = pl.DataFrame(
     {
         "subject_id": [1500733],
-        "code": [[7, 9]],
-        "numeric_value": [[None, -0.7995940446853638]],
+        "static_code": [[7, 9]],
+        "static_numeric_value": [[None, -0.7995940446853638]],
         "start_time": [ts[0] for ts in HELD_OUT_0_TIMES],
         "time": HELD_OUT_0_TIMES,
     },

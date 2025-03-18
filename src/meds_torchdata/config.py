@@ -4,15 +4,16 @@ This module contains configuration objects for building a PyTorch dataset from a
 enumeration objects for categorical options and a general DataClass configuration object for dataset options.
 """
 
+from collections.abc import Generator
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+import numpy as np
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
-from numpy.random import Generator, default_rng
 
 
-def resolve_rng(rng: Generator | int | None) -> Generator:
+def resolve_rng(rng: np.random.Generator | int | None) -> np.random.Generator:
     """Resolve a random number generator from a seed or generator.
 
     Args:
@@ -25,10 +26,10 @@ def resolve_rng(rng: Generator | int | None) -> Generator:
 
     match rng:
         case None:
-            return default_rng()
+            return np.random.default_rng()
         case int():
-            return default_rng(rng)
-        case Generator():
+            return np.random.default_rng(rng)
+        case np.random.Generator():
             return rng
         case _:
             raise ValueError(f"Invalid random number generator: {rng}!")
@@ -78,7 +79,7 @@ class SubsequenceSamplingStrategy(StrEnum):
             0
             >>> SubsequenceSamplingStrategy.subsample_st_offset(SubsequenceSamplingStrategy.TO_END, 10, 5)
             5
-            >>> SubsequenceSamplingStrategy.subsample_st_offset("random", 10, 5, rng=default_rng(1))
+            >>> SubsequenceSamplingStrategy.subsample_st_offset("random", 10, 5, rng=np.random.default_rng(1))
             2
             >>> SubsequenceSamplingStrategy.subsample_st_offset("random", 10, 5, rng=1)
             2
@@ -186,7 +187,7 @@ class MEDSTorchDataConfig:
                 f"Got {str(self.tensorized_cohort_dir.resolve())}"
             )
 
-        if self.task_labels_dir:
+        if self.has_task:
             self.task_labels_dir = Path(self.task_labels_dir)
             if not self.task_labels_dir.is_dir():
                 raise FileNotFoundError(
@@ -210,10 +211,92 @@ class MEDSTorchDataConfig:
             case _:
                 raise ValueError(f"Invalid subsequence sampling strategy: {self.seq_sampling_strategy}")
 
+    @property
+    def schema_dir(self) -> Path:
+        """Return the schema directory for the tensorized cohort. The path need not exist to be returned.
+
+        Examples:
+            >>> with tempfile.TemporaryDirectory() as tmpdir:
+            ...     cfg = MEDSTorchDataConfig(Path(tmpdir), max_seq_len=10)
+            >>> cfg.schema_dir
+            PosixPath('/tmp/tmp.../tokenization/schemas')
+        """
+        return self.tensorized_cohort_dir / "tokenization" / "schemas"
+
+    @property
+    def schema_fps(self) -> Generator[tuple[str, Path], None, None]:
+        """Yield shard names and schema paths for existent schema files.
+
+        Examples:
+            >>> with tempfile.TemporaryDirectory() as tmpdir:
+            ...     tensorized_root = Path(tmpdir)
+            ...     schema_dir = tensorized_root / "tokenization" / "schemas"
+            ...     schema_dir.mkdir(parents=True)
+            ...     (schema_dir / "shard_A.parquet").touch()
+            ...     (schema_dir / "shard_B.json").touch()
+            ...     (schema_dir / "shard_C/").mkdir()
+            ...     (schema_dir / "shard_C" / "0.parquet").touch()
+            ...     (schema_dir / "shard_C" / "1.parquet").touch()
+            ...     (schema_dir / "shard_D/").mkdir()
+            ...     cfg = MEDSTorchDataConfig(tensorized_root, max_seq_len=10)
+            ...     for shard, fp in cfg.schema_fps:
+            ...         print(shard, str(fp.relative_to(tensorized_root)))
+            shard_A tokenization/schemas/shard_A.parquet
+            shard_C/1 tokenization/schemas/shard_C/1.parquet
+            shard_C/0 tokenization/schemas/shard_C/0.parquet
+        """
+
+        for schema_fp in self.schema_dir.rglob("*.parquet"):
+            shard = str(schema_fp.relative_to(self.schema_dir).with_suffix(""))
+            yield shard, schema_fp
+
+    @property
+    def has_task(self) -> bool:
+        """Returns whether the config has a task specified.
+
+        Examples:
+            >>> with tempfile.TemporaryDirectory() as tmpdir:
+            ...     tensorized_root = Path(tmpdir) / "tensorized"
+            ...     tensorized_root.mkdir()
+            ...     cfg_no_task = MEDSTorchDataConfig(tensorized_root, 2)
+            ...     task_labels_dir = Path(tmpdir) / "task_labels"
+            ...     task_labels_dir.mkdir()
+            ...     cfg_task = MEDSTorchDataConfig(tensorized_root, 2, task_labels_dir=task_labels_dir)
+            ...     print(f"No task dir: {cfg_no_task.has_task}, Task dir: {cfg_task.has_task}")
+            No task dir: False, Task dir: True
+        """
+        return self.task_labels_dir is not None
+
+    @property
+    def task_labels_fps(self) -> list[Path] | None:
+        """Returns the list of task label files for this configuration, or `None` if no task is specified.
+
+        Returned files must exist; if no such files exist, will return an empty list.
+
+        Examples:
+            >>> with tempfile.TemporaryDirectory() as tmpdir:
+            ...     tensorized_root = Path(tmpdir) / "tensorized"
+            ...     tensorized_root.mkdir()
+            ...     cfg_no_task = MEDSTorchDataConfig(tensorized_root, 2)
+            ...     print(f"No task dir: {cfg_no_task.task_labels_fps}")
+            ...     task_labels_dir = Path(tmpdir) / "task_labels"
+            ...     task_labels_dir.mkdir()
+            ...     (task_labels_dir / "labels_1.parquet").touch()
+            ...     (task_labels_dir / "nested").mkdir()
+            ...     (task_labels_dir / "nested/labels_2.parquet").touch()
+            ...     cfg_task = MEDSTorchDataConfig(tensorized_root, 2, task_labels_dir=task_labels_dir)
+            ...     print(f"Task dir: {cfg_task.task_labels_fps}") # doctest: +NORMALIZE_WHITESPACE
+            No task dir: None
+            Task dir: [PosixPath('/tmp/.../task_labels/labels_1.parquet'),
+                       PosixPath('/tmp/.../task_labels/nested/labels_2.parquet')]
+        """
+
+        return list(self.task_labels_dir.rglob("*.parquet")) if self.has_task else None
+
     def process_dynamic_data(
         self,
         data: JointNestedRaggedTensorDict,
-        rng: Generator | int | None = None,
+        rng: np.random.Generator | int | None = None,
     ) -> JointNestedRaggedTensorDict:
         """This processes the dynamic data for a subject, including subsampling and flattening.
 

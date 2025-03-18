@@ -126,14 +126,14 @@ def extract_statics_and_schema(df: pl.LazyFrame) -> pl.LazyFrame:
         >>> df = extract_statics_and_schema(df).collect()
         >>> df.drop("time")
         shape: (2, 4)
-        ┌────────────┬───────────┬───────────────┬─────────────────────┐
-        │ subject_id ┆ code      ┆ numeric_value ┆ start_time          │
-        │ ---        ┆ ---       ┆ ---           ┆ ---                 │
-        │ i64        ┆ list[i64] ┆ list[f64]     ┆ datetime[μs]        │
-        ╞════════════╪═══════════╪═══════════════╪═════════════════════╡
-        │ 1          ┆ [100]     ┆ [1.0]         ┆ 2021-01-01 00:00:00 │
-        │ 2          ┆ [200]     ┆ [5.0]         ┆ 2021-01-02 00:00:00 │
-        └────────────┴───────────┴───────────────┴─────────────────────┘
+        ┌────────────┬─────────────┬──────────────────────┬─────────────────────┐
+        │ subject_id ┆ static_code ┆ static_numeric_value ┆ start_time          │
+        │ ---        ┆ ---         ┆ ---                  ┆ ---                 │
+        │ i64        ┆ list[i64]   ┆ list[f64]            ┆ datetime[μs]        │
+        ╞════════════╪═════════════╪══════════════════════╪═════════════════════╡
+        │ 1          ┆ [100]       ┆ [1.0]                ┆ 2021-01-01 00:00:00 │
+        │ 2          ┆ [200]       ┆ [5.0]                ┆ 2021-01-02 00:00:00 │
+        └────────────┴─────────────┴──────────────────────┴─────────────────────┘
         >>> df.select("subject_id", "time").explode("time")
         shape: (3, 2)
         ┌────────────┬─────────────────────┐
@@ -156,14 +156,14 @@ def extract_statics_and_schema(df: pl.LazyFrame) -> pl.LazyFrame:
         >>> df = extract_statics_and_schema(df).collect()
         >>> df.drop("time")
         shape: (2, 4)
-        ┌────────────┬───────────┬───────────────┬─────────────────────┐
-        │ subject_id ┆ code      ┆ numeric_value ┆ start_time          │
-        │ ---        ┆ ---       ┆ ---           ┆ ---                 │
-        │ i64        ┆ list[i64] ┆ list[f64]     ┆ datetime[μs]        │
-        ╞════════════╪═══════════╪═══════════════╪═════════════════════╡
-        │ 1          ┆ null      ┆ null          ┆ 2020-01-01 00:00:00 │
-        │ 2          ┆ null      ┆ null          ┆ 2020-01-01 00:00:00 │
-        └────────────┴───────────┴───────────────┴─────────────────────┘
+        ┌────────────┬─────────────┬──────────────────────┬─────────────────────┐
+        │ subject_id ┆ static_code ┆ static_numeric_value ┆ start_time          │
+        │ ---        ┆ ---         ┆ ---                  ┆ ---                 │
+        │ i64        ┆ list[i64]   ┆ list[f64]            ┆ datetime[μs]        │
+        ╞════════════╪═════════════╪══════════════════════╪═════════════════════╡
+        │ 1          ┆ null        ┆ null                 ┆ 2020-01-01 00:00:00 │
+        │ 2          ┆ null        ┆ null                 ┆ 2020-01-01 00:00:00 │
+        └────────────┴─────────────┴──────────────────────┴─────────────────────┘
         >>> df.select("subject_id", "time").explode("time")
         shape: (5, 2)
         ┌────────────┬─────────────────────┐
@@ -182,14 +182,14 @@ def extract_statics_and_schema(df: pl.LazyFrame) -> pl.LazyFrame:
     static, dynamic = split_static_and_dynamic(df)
 
     # This collects static data by subject ID and stores only (as a list) the codes and numeric values.
-    static_by_subject = static.group_by("subject_id", maintain_order=True).agg("code", "numeric_value")
+    static_by_subject = static.group_by("subject_id", maintain_order=True).agg(
+        pl.col("code").alias("static_code"), pl.col("numeric_value").alias("static_numeric_value")
+    )
 
     # This collects the unique times for each subject.
     schema_by_subject = dynamic.group_by("subject_id", maintain_order=True).agg(
         pl.col("time").min().alias("start_time"), pl.col("time").unique(maintain_order=True)
     )
-
-    # TODO(mmd): Consider tracking subject offset explicitly here.
 
     return static_by_subject.join(schema_by_subject, on="subject_id", how="full", coalesce=True)
 

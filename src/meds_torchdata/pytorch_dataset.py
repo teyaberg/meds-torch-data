@@ -1,5 +1,5 @@
 import logging
-from pathlib import Path
+from typing import NamedTuple
 
 import numpy as np
 import polars as pl
@@ -12,6 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 BINARY_LABEL_COL = "boolean_value"
+
+
+class StaticData(NamedTuple):
+    code: list[int]
+    numeric_value: list[float | None]
 
 
 class MEDSPytorchDataset(torch.utils.data.Dataset):
@@ -141,41 +146,18 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             FileNotFoundError: If specified task files are not found.
         """
 
-        schema_dir = self.config.tensorized_cohort_dir / "tokenization" / "schemas"
-
         self.static_dfs = {}
         self.subj_indices = {}
         self.subj_seq_bounds = {}
         self.subj_map = {}
 
-        schema_files = list(schema_dir.glob(f"{self.split}/*.parquet"))
-        if not schema_files:
-            raise FileNotFoundError(
-                f"No schema files found in {schema_dir}! If your data is not sharded by split, this error "
-                "may occur because this codebase does not handle non-split sharded data. See Issue #79 for "
-                "tracking this issue."
-            )
+        for shard, schema_fp in self.config.schema_fps:
+            if not shard.startswith(f"{self.split}/"):
+                continue
 
-        for schema_fp in schema_files:
-            shard = str(schema_fp.relative_to(schema_dir).with_suffix(""))
-
-            df = (
-                pl.read_parquet(
-                    schema_fp,
-                    columns=[
-                        "subject_id",
-                        "start_time",
-                        "code",
-                        "numeric_value",
-                        "time",
-                    ],
-                    use_pyarrow=True,
-                )
-                .rename({"code": "static_indices", "numeric_value": "static_values"})
-                .with_columns(
-                    pl.col("static_values").list.eval(pl.element().fill_null(np.nan)),
-                    pl.col("static_indices").list.eval(pl.element().fill_null(0)),
-                )
+            df = pl.read_parquet(schema_fp, use_pyarrow=True).with_columns(
+                pl.col("static_code").list.eval(pl.element().fill_null(0)),
+                pl.col("static_numeric_value").list.eval(pl.element().fill_null(np.nan)),
             )
 
             self.static_dfs[shard] = df
@@ -187,17 +169,24 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 self.subj_indices[subj] = i
                 self.subj_seq_bounds[subj] = (0, n_events_count)
 
+        if not self.static_dfs:
+            raise FileNotFoundError(
+                f"No schema files found in {self.config.schema_dir}! If your data is not sharded by split, "
+                "this error may occur because this codebase does not handle non-split sharded data. See "
+                "Issue #79 for tracking this issue."
+            )
+
         if self.has_task:
-            logger.info(f"Reading tasks from {self.task_labels_fps}")
+            logger.info(f"Reading tasks from {self.config.task_labels_fps}")
             task_df = pl.concat(
-                [pl.read_parquet(fp, use_pyarrow=True) for fp in self.task_labels_fps], how="vertical"
+                [pl.read_parquet(fp, use_pyarrow=True) for fp in self.config.task_labels_fps], how="vertical"
             )
 
             (
                 subjs_and_ends,
                 self.labels,
                 self.prediction_times,
-            ) = MEDSPytorchDataset.get_task_indices_and_labels(task_df, self.static_dfs)
+            ) = self.get_task_indices_and_labels(task_df, self.static_dfs)
             self.index = [(subj, 0, end) for subj, end in subjs_and_ends]
         else:
             self.index = [(subj, *bounds) for subj, bounds in self.subj_seq_bounds.items()]
@@ -231,7 +220,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
     @property
     def has_task(self) -> bool:
-        """Returns whether the dataset has a task specified.
+        """Returns whether the dataset has a task specified. A convenience wrapper around the config property.
 
         Examples:
             >>> sample_pytorch_dataset.has_task
@@ -239,21 +228,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             >>> sample_pytorch_dataset_with_task.has_task
             True
         """
-        return self.config.task_labels_dir is not None
-
-    @property
-    def task_labels_fps(self) -> list[Path] | None:
-        """Returns the list of task label files for the dataset.
-
-        Examples:
-            >>> print(sample_pytorch_dataset.task_labels_fps)
-            None
-            >>> print(sample_pytorch_dataset_with_task.task_labels_fps) # doctest: +NORMALIZE_WHITESPACE
-            [PosixPath('/tmp/.../task_labels/boolean_value_task/labels_A.parquet.parquet'),
-             PosixPath('/tmp/.../task_labels/boolean_value_task/labels_B.parquet.parquet')]
-        """
-
-        return list(self.config.task_labels_dir.rglob("*.parquet")) if self.has_task else None
+        return self.config.has_task
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         """Retrieve a single data point from the dataset.
@@ -271,8 +246,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 - numeric_value: List of dynamic numeric values.
                 - numeric_value_mask: Mask of numeric values (False means no numeric value was recorded)
                 - time_delta_days: List of dynamic time deltas between observations.
-                - static_indices (Optional): List of static MEDS codes.
-                - static_values (Optional): List of static MEDS numeric values.
+                - static_code (Optional): List of static MEDS codes.
+                - static_numeric_value (Optional): List of static MEDS numeric values.
         """
         return self._seeded_getitem(idx)
 
@@ -285,7 +260,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         dynamic_data, static_data = self.load_subject_data(*self.index[idx])
 
-        out = {"static_indices": static_data[0], "static_values": static_data[1]}
+        out = {"static_code": static_data.code, "static_numeric_value": static_data.numeric_value}
 
         out["dynamic"] = self.config.process_dynamic_data(dynamic_data, rng=seed)
 
@@ -296,7 +271,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
     def load_subject_data(
         self, subject_id: int, st: int | None, end: int | None
-    ) -> tuple[JointNestedRaggedTensorDict, tuple[list[int], list[float | None]]]:
+    ) -> tuple[JointNestedRaggedTensorDict, StaticData]:
         """Loads and returns the dynamic data slice for a given subject ID and permissible event range.
 
         Args:
@@ -307,7 +282,113 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                  read for this subject's record. If None, no limit is applied.
 
         Returns:
-            The subject's dynamic data, static indices, and static_values
+            The subject's dynamic data and static data. The static data is returned as a StaticData named
+            tuple with two fields: `code` and `numeric_value`.
+
+        Examples:
+            >>> from nested_ragged_tensors.ragged_numpy import pprint_dense
+            >>> dynamic_data, static_data = sample_pytorch_dataset.load_subject_data(68729, 0, 3)
+            >>> static_data.code
+            [8, 9]
+            >>> static_data.numeric_value
+            [nan, -0.5438239574432373]
+            >>> pprint_dense(dynamic_data.to_dense())
+            time_delta_days
+            [           nan 1.17661045e+04 9.78703722e-02]
+            .
+            ---
+            .
+            dim1/mask
+            [[ True False False]
+             [ True  True  True]
+             [ True False False]]
+            .
+            code
+            [[ 5  0  0]
+             [ 3 10 11]
+             [ 4  0  0]]
+            .
+            numeric_value
+            [[        nan  0.          0.        ]
+             [        nan -1.4474752  -0.34049404]
+             [        nan  0.          0.        ]]
+
+            To see that these make sense, recall we can check the raw data. Obviously, the data have been
+            normalized and tokenized, so we should not expect exact matches in the numeric values or code
+            strings, but were we to inspect the code vocabularies, they would align:
+
+            >>> from meds_testing_helpers.dataset import MEDSDataset
+            >>> D = MEDSDataset(root_dir=simple_static_MEDS)
+            >>> raw_data = pl.from_arrow(D.data_shards["train/1"]).filter(pl.col("subject_id") == 68729)
+            >>> raw_data
+            shape: (7, 4)
+            ┌────────────┬─────────────────────┬──────────────────────┬───────────────┐
+            │ subject_id ┆ time                ┆ code                 ┆ numeric_value │
+            │ ---        ┆ ---                 ┆ ---                  ┆ ---           │
+            │ i64        ┆ datetime[μs]        ┆ str                  ┆ f32           │
+            ╞════════════╪═════════════════════╪══════════════════════╪═══════════════╡
+            │ 68729      ┆ null                ┆ EYE_COLOR//HAZEL     ┆ null          │
+            │ 68729      ┆ null                ┆ HEIGHT               ┆ 160.395309    │
+            │ 68729      ┆ 1978-03-09 00:00:00 ┆ DOB                  ┆ null          │
+            │ 68729      ┆ 2010-05-26 02:30:56 ┆ ADMISSION//PULMONARY ┆ null          │
+            │ 68729      ┆ 2010-05-26 02:30:56 ┆ HR                   ┆ 86.0          │
+            │ 68729      ┆ 2010-05-26 02:30:56 ┆ TEMP                 ┆ 97.800003     │
+            │ 68729      ┆ 2010-05-26 04:51:52 ┆ DISCHARGE            ┆ null          │
+            └────────────┴─────────────────────┴──────────────────────┴───────────────┘
+            >>> subj_codes = raw_data["code"].unique().to_list()
+            >>> code_metadata = (
+            ...     pl.read_parquet(tensorized_MEDS_dataset / "metadata/codes.parquet")
+            ...     .filter(pl.col("code").is_in(subj_codes))
+            ... )
+            >>> mean_col = (pl.col("values/sum")/pl.col("values/n_occurrences")).alias("values/mean")
+            >>> std_col = (
+            ...     (pl.col("values/sum_sqd")/pl.col("values/n_occurrences") - mean_col**2)**0.5
+            ... ).alias("values/std")
+            >>> code_metadata.select("code", "code/vocab_index", mean_col, std_col)
+            shape: (7, 4)
+            ┌──────────────────────┬──────────────────┬─────────────┬────────────┐
+            │ code                 ┆ code/vocab_index ┆ values/mean ┆ values/std │
+            │ ---                  ┆ ---              ┆ ---         ┆ ---        │
+            │ str                  ┆ u8               ┆ f32         ┆ f32        │
+            ╞══════════════════════╪══════════════════╪═════════════╪════════════╡
+            │ ADMISSION//PULMONARY ┆ 3                ┆ NaN         ┆ NaN        │
+            │ DISCHARGE            ┆ 4                ┆ NaN         ┆ NaN        │
+            │ DOB                  ┆ 5                ┆ NaN         ┆ NaN        │
+            │ EYE_COLOR//HAZEL     ┆ 8                ┆ NaN         ┆ NaN        │
+            │ HEIGHT               ┆ 9                ┆ 164.209732  ┆ 7.014076   │
+            │ HR                   ┆ 10               ┆ 113.375     ┆ 18.912241  │
+            │ TEMP                 ┆ 11               ┆ 98.458336   ┆ 1.933464   │
+            └──────────────────────┴──────────────────┴─────────────┴────────────┘
+
+            Note this is independent of the task data and the index; this only depends on the raw data on
+            disk. So, we'll see the exact same output if we call over the sample dataset with tasks because
+            the raw MEDS data is the same.
+
+            >>> dynamic_data, static_data = sample_pytorch_dataset_with_task.load_subject_data(68729, 0, 3)
+            >>> static_data.code
+            [8, 9]
+            >>> static_data.numeric_value
+            [nan, -0.5438239574432373]
+            >>> pprint_dense(dynamic_data.to_dense())
+            time_delta_days
+            [           nan 1.17661045e+04 9.78703722e-02]
+            .
+            ---
+            .
+            dim1/mask
+            [[ True False False]
+             [ True  True  True]
+             [ True False False]]
+            .
+            code
+            [[ 5  0  0]
+             [ 3 10 11]
+             [ 4  0  0]]
+            .
+            numeric_value
+            [[        nan  0.          0.        ]
+             [        nan -1.4474752  -0.34049404]
+             [        nan  0.          0.        ]]
         """
         shard = self.subj_map[subject_id]
         subject_idx = self.subj_indices[subject_id]
@@ -316,10 +397,10 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         subject_dynamic_data = JointNestedRaggedTensorDict(tensors_fp=dynamic_data_fp)[subject_idx, st:end]
 
         static_row = self.static_dfs[shard][subject_idx].to_dict()
-        static_indices = static_row["static_indices"].item().to_list()
-        static_values = static_row["static_values"].item().to_list()
+        static_code = static_row["static_code"].item().to_list()
+        static_numeric_value = static_row["static_numeric_value"].item().to_list()
 
-        return subject_dynamic_data, (static_indices, static_values)
+        return subject_dynamic_data, StaticData(static_code, static_numeric_value)
 
     def collate(self, batch: list[dict]) -> dict[str, torch.Tensor]:
         """Combines a batch of data points into a single, tensorized batch.
@@ -412,8 +493,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             case StaticInclusionMode.INCLUDE:
                 static_data = JointNestedRaggedTensorDict(
                     {
-                        "static_code": [item["static_indices"] for item in batch],
-                        "static_numeric_value": [item["static_values"] for item in batch],
+                        "static_code": [item["static_code"] for item in batch],
+                        "static_numeric_value": [item["static_numeric_value"] for item in batch],
                     }
                 ).to_dense()
                 static_tensorized = {k: torch.as_tensor(v) for k, v in static_data.items()}

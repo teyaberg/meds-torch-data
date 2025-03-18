@@ -223,9 +223,9 @@ that we'll also reduce precision in the numeric values to make the output more r
 ...         else:
 ...             print(v)
 >>> print_element(pyd[0])
-static_indices (list):
+static_code (list):
 [8, 9]
-static_values (list):
+static_numeric_value (list):
 [nan, -0.5438239574432373]
 dynamic (JointNestedRaggedTensorDict):
 code
@@ -245,9 +245,9 @@ a sequence of length 3 in the dataset and our `max_seq_len` is set to 5.
 
 ```python
 >>> print_element(pyd[0])
-static_indices (list):
+static_code (list):
 [8, 9]
-static_values (list):
+static_numeric_value (list):
 [nan, -0.5438239574432373]
 dynamic (JointNestedRaggedTensorDict):
 code
@@ -269,9 +269,9 @@ internal seeded version of the getitem call, which just allows to add a seed ont
 
 ```python
 >>> print_element(pyd._seeded_getitem(3, seed=0))
-static_indices (list):
+static_code (list):
 [6, 9]
-static_values (list):
+static_numeric_value (list):
 [nan, 0.06802856922149658]
 dynamic (JointNestedRaggedTensorDict):
 code
@@ -283,9 +283,9 @@ numeric_value
 time_delta_days
 [0.01888889 0.         0.0084838  0.         0.01167824]
 >>> print_element(pyd._seeded_getitem(3, seed=1))
-static_indices (list):
+static_code (list):
 [6, 9]
-static_values (list):
+static_numeric_value (list):
 [nan, 0.06802856922149658]
 dynamic (JointNestedRaggedTensorDict):
 code
@@ -338,9 +338,9 @@ default output to be at a _measurement_ level, rather than an _event_ level, by 
 ```python
 >>> pyd.config.do_flatten_tensors = False
 >>> print_element(pyd[0])
-static_indices (list):
+static_code (list):
 [8, 9]
-static_values (list):
+static_numeric_value (list):
 [nan, -0.5438239574432373]
 dynamic (JointNestedRaggedTensorDict):
 time_delta_days

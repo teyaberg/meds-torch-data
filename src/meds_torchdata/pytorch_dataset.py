@@ -1,17 +1,16 @@
 import logging
+from functools import cached_property
 from typing import NamedTuple
 
 import numpy as np
 import polars as pl
 import torch
+from meds import prediction_time_field, subject_id_field, time_field
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
 from .config import MEDSTorchDataConfig, StaticInclusionMode
 
 logger = logging.getLogger(__name__)
-
-
-BINARY_LABEL_COL = "boolean_value"
 
 
 class StaticData(NamedTuple):
@@ -46,10 +45,10 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
     Attributes:
         config: The configuration options for the dataset.
         split: The data split to use.
-        schema_dfs: A dictionary of static DataFrames for each shard.
-        subj_to_row_idx: A mapping of subject IDs to their indices.
-        index: A list of (subject_id, start, end) tuples for data access.
-        labels: A dictionary of task labels (if tasks are specified).
+        schema_dfs_by_shard: A dictionary mapping shard names to the schema DataFrames for that shard.
+        subj_locations: A dictionary mapping subject IDs to their locations in the schema DataFrames.
+        index: A list of tuples, where each tuple contains the subject ID and the end index for that subject.
+        labels: The task labels for the dataset, if any. This will be `None` if there is no task.
 
     For examples of this class, see the global README.md. Here, we'll include some examples of other aspects
     of the class, such as error validation and specific methods.
@@ -63,7 +62,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         >>> len(pyd)
         4
         >>> pyd.index
-        [(68729, 0, 3), (814703, 0, 3), (239684, 0, 6), (1195293, 0, 8)]
+        [(68729, 3), (814703, 3), (239684, 6), (1195293, 8)]
 
         If you pass in a non-existent split, you'll get an error as it won't be able to find the schema files:
 
@@ -73,13 +72,13 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         FileNotFoundError: No schema files found in /tmp/.../tokenization/schemas! If your data is not sharded
         by split, this error may occur because this codebase does not handle non-split sharded data. See Issue
         #79 for tracking this issue.
-
     """
 
-    @staticmethod
-    def get_task_seq_bounds_and_labels(
-        label_df: pl.DataFrame, schema_df: pl.DataFrame
-    ) -> tuple[list[tuple[int, int]], list[bool]]:
+    LABEL_COL = "boolean_value"
+    END_IDX = "end_event_index"
+
+    @classmethod
+    def get_task_seq_bounds_and_labels(cls, label_df: pl.DataFrame, schema_df: pl.DataFrame) -> pl.DataFrame:
         """Returns the event-level allowed input sequence boundaries and labels for each task sample.
 
         This function is guaranteed to output an index of the same order and length as `label_df`. Subjects
@@ -90,8 +89,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             schema_df: A DataFrame with subject ID and a list of event timestamps for each shard.
 
         Returns:
-            A list of pairs of subject IDs and the event index one larger than the last permissible event for
-            that subject, and a list of labels for the subject in the same order.
+            A copy of the labels DataFrame, restricted to included subjects, with the appropriate end indices
+            for each task sample.
 
         Examples:
             >>> label_df = pl.DataFrame({
@@ -124,43 +123,48 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             ...         [datetime(2020, 1, 1), datetime(2021, 11, 2), datetime(2021, 11, 3)],
             ...     ],
             ... })
-            >>> subjs_ends, labels = MEDSPytorchDataset.get_task_seq_bounds_and_labels(label_df, schema_df)
-            >>> subjs_ends
-            [(1, 2), (2, 3), (2, 5), (3, 1), (3, 1), (3, 1)]
-            >>> labels
-            [True, False, True, True, False, True]
+            >>> MEDSPytorchDataset.get_task_seq_bounds_and_labels(label_df, schema_df)
+            shape: (6, 4)
+            ┌────────────┬─────────────────┬─────────────────────┬───────────────┐
+            │ subject_id ┆ end_event_index ┆ prediction_time     ┆ boolean_value │
+            │ ---        ┆ ---             ┆ ---                 ┆ ---           │
+            │ i64        ┆ u32             ┆ datetime[μs]        ┆ bool          │
+            ╞════════════╪═════════════════╪═════════════════════╪═══════════════╡
+            │ 1          ┆ 2               ┆ 2020-01-01 00:00:00 ┆ true          │
+            │ 2          ┆ 3               ┆ 2020-01-01 00:00:00 ┆ false         │
+            │ 2          ┆ 5               ┆ 2020-01-02 00:00:00 ┆ true          │
+            │ 3          ┆ 1               ┆ 2020-01-01 00:00:00 ┆ true          │
+            │ 3          ┆ 1               ┆ 2020-01-02 00:00:00 ┆ false         │
+            │ 3          ┆ 1               ┆ 2020-01-03 00:00:00 ┆ true          │
+            └────────────┴─────────────────┴─────────────────────┴───────────────┘
         """
 
         end_idx_expr = (
-            (pl.col("time").search_sorted(pl.col("prediction_time"), side="right")).last().alias("end_idx")
+            (pl.col(time_field).search_sorted(pl.col(prediction_time_field), side="right"))
+            .last()
+            .alias(cls.END_IDX)
         )
 
-        label_df = (
-            label_df.join(schema_df, on="subject_id", how="inner", maintain_order="left")
-            .with_row_index("_row_index")
-            .explode("time")
-            .group_by("_row_index", "subject_id", "prediction_time", "boolean_value", maintain_order=True)
+        return (
+            label_df.join(schema_df, on=subject_id_field, how="inner", maintain_order="left")
+            .with_row_index("_row")
+            .explode(time_field)
+            .group_by("_row", subject_id_field, prediction_time_field, cls.LABEL_COL, maintain_order=True)
             .agg(end_idx_expr)
+            .select(subject_id_field, cls.END_IDX, prediction_time_field, cls.LABEL_COL)
         )
-
-        indexes = list(zip(label_df["subject_id"], label_df["end_idx"]))
-        labels = label_df[BINARY_LABEL_COL].to_list()
-
-        return indexes, labels
 
     def __init__(self, cfg: MEDSTorchDataConfig, split: str):
         super().__init__()
 
-        self.config = cfg
-        self.split = split
+        self.config: MEDSTorchDataConfig = cfg
+        self.split: str = split
 
         logger.info("Reading subject schema and static data")
 
-        self.schema_dfs = {}
-        self.subj_to_row_idx = {}
-        self.subj_to_shard = {}
+        self.schema_dfs_by_shard: dict[str, pl.DataFrame] = {}
+        self.subj_locations: dict[int, tuple[str, int]] = {}
 
-        subj_seq_bounds = {}
         for shard, schema_fp in self.config.schema_fps:
             if not shard.startswith(f"{self.split}/"):
                 continue
@@ -170,32 +174,19 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 pl.col("static_numeric_value").list.eval(pl.element().fill_null(np.nan)),
             )
 
-            self.schema_dfs[shard] = df
-            subject_ids = df["subject_id"]
-            self.subj_to_shard.update({subj: shard for subj in subject_ids})
+            self.schema_dfs_by_shard[shard] = df
+            for i, subj in enumerate(df[subject_id_field]):
+                self.subj_locations[subj] = (shard, i)
 
-            n_events = df.select(pl.col("time").list.len().alias("n_events")).get_column("n_events")
-            for i, (subj, n_events_count) in enumerate(zip(subject_ids, n_events)):
-                self.subj_to_row_idx[subj] = i
-                subj_seq_bounds[subj] = (0, n_events_count)
-
-        if not self.schema_dfs:
+        if not self.schema_dfs_by_shard:
             raise FileNotFoundError(
                 f"No schema files found in {self.config.schema_dir}! If your data is not sharded by split, "
                 "this error may occur because this codebase does not handle non-split sharded data. See "
                 "Issue #79 for tracking this issue."
             )
 
-        if self.has_task:
-            logger.info(f"Reading tasks from {self.config.task_labels_fps}")
-
-            schema_df = pl.concat(df.select("subject_id", "time") for df in self.schema_dfs.values())
-
-            subjs_and_ends, self.labels = self.get_task_seq_bounds_and_labels(self.labels_df, schema_df)
-            self.index = [(subj, 0, end) for subj, end in subjs_and_ends]
-        else:
-            self.index = [(subj, *bounds) for subj, bounds in subj_seq_bounds.items()]
-            self.labels = None
+        self.index = list(zip(self.schema_df[subject_id_field], self.schema_df[self.END_IDX]))
+        self.labels = self.schema_df[self.LABEL_COL] if self.has_task else None
 
     @property
     def labels_df(self) -> pl.DataFrame:
@@ -204,9 +195,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         Examples:
             >>> print(sample_pytorch_dataset.labels_df)
             None
-            >>> sample_pytorch_dataset_with_task.labels_df.select(
-            ...     "subject_id", "prediction_time", "boolean_value"
-            ... )
+            >>> sample_pytorch_dataset_with_task.labels_df
             shape: (21, 3)
             ┌────────────┬─────────────────────┬───────────────┐
             │ subject_id ┆ prediction_time     ┆ boolean_value │
@@ -229,9 +218,64 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         if not self.has_task:
             return None
 
+        label_cols = [subject_id_field, prediction_time_field, self.LABEL_COL]
+
+        logger.info(f"Reading tasks from {self.config.task_labels_fps}")
         return pl.concat(
-            [pl.read_parquet(fp, use_pyarrow=True) for fp in self.config.task_labels_fps], how="vertical"
+            [pl.read_parquet(fp, columns=label_cols, use_pyarrow=True) for fp in self.config.task_labels_fps],
+            how="vertical",
         )
+
+    @cached_property
+    def schema_df(self) -> pl.DataFrame:
+        """Returns the "schema" of this dataframe, cataloging each sample that will be output by row.
+
+        This takes into account both task and non-task data, and is useful for aligning dataloader or model
+        outputs to the source inputs.
+
+        Examples:
+            >>> sample_pytorch_dataset.schema_df
+            shape: (4, 2)
+            ┌────────────┬─────────────────┐
+            │ subject_id ┆ end_event_index │
+            │ ---        ┆ ---             │
+            │ i64        ┆ u32             │
+            ╞════════════╪═════════════════╡
+            │ 68729      ┆ 3               │
+            │ 814703     ┆ 3               │
+            │ 239684     ┆ 6               │
+            │ 1195293    ┆ 8               │
+            └────────────┴─────────────────┘
+            >>> sample_pytorch_dataset_with_task.schema_df
+            shape: (13, 4)
+            ┌────────────┬─────────────────┬─────────────────────┬───────────────┐
+            │ subject_id ┆ end_event_index ┆ prediction_time     ┆ boolean_value │
+            │ ---        ┆ ---             ┆ ---                 ┆ ---           │
+            │ i64        ┆ u32             ┆ datetime[μs]        ┆ bool          │
+            ╞════════════╪═════════════════╪═════════════════════╪═══════════════╡
+            │ 239684     ┆ 3               ┆ 2010-05-11 18:00:00 ┆ false         │
+            │ 239684     ┆ 4               ┆ 2010-05-11 18:30:00 ┆ true          │
+            │ 239684     ┆ 5               ┆ 2010-05-11 19:00:00 ┆ true          │
+            │ 1195293    ┆ 3               ┆ 2010-06-20 19:30:00 ┆ false         │
+            │ 1195293    ┆ 4               ┆ 2010-06-20 20:00:00 ┆ true          │
+            │ …          ┆ …               ┆ …                   ┆ …             │
+            │ 68729      ┆ 2               ┆ 2010-05-26 04:00:00 ┆ true          │
+            │ 68729      ┆ 2               ┆ 2010-05-26 04:30:00 ┆ true          │
+            │ 814703     ┆ 2               ┆ 2010-02-05 06:00:00 ┆ false         │
+            │ 814703     ┆ 2               ┆ 2010-02-05 06:30:00 ┆ true          │
+            │ 814703     ┆ 2               ┆ 2010-02-05 07:00:00 ┆ true          │
+            └────────────┴─────────────────┴─────────────────────┴───────────────┘
+        """
+
+        base_df = pl.concat(
+            (df.select(subject_id_field, time_field) for df in self.schema_dfs_by_shard.values()),
+            how="vertical",
+        )
+
+        if self.has_task:
+            return self.get_task_seq_bounds_and_labels(self.labels_df, base_df)
+        else:
+            return base_df.select(subject_id_field, pl.col(time_field).list.len().alias(self.END_IDX))
 
     @property
     def subject_ids(self) -> list[int]:
@@ -299,19 +343,20 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         subsequence sampling.
         """
 
-        dynamic_data, static_data = self.load_subject_data(*self.index[idx])
+        subject_id, end_idx = self.index[idx]
+        dynamic_data, static_data = self.load_subject_data(subject_id=subject_id, st=0, end=end_idx)
 
         out = {"static_code": static_data.code, "static_numeric_value": static_data.numeric_value}
 
         out["dynamic"] = self.config.process_dynamic_data(dynamic_data, rng=seed)
 
         if self.has_task:
-            out[BINARY_LABEL_COL] = self.labels[idx]
+            out[self.LABEL_COL] = self.labels[idx]
 
         return out
 
     def load_subject_data(
-        self, subject_id: int, st: int | None, end: int | None
+        self, subject_id: int, st: int, end: int
     ) -> tuple[JointNestedRaggedTensorDict, StaticData]:
         """Loads and returns the dynamic data slice for a given subject ID and permissible event range.
 
@@ -431,13 +476,12 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
              [        nan -1.4474752  -0.34049404]
              [        nan  0.          0.        ]]
         """
-        shard = self.subj_to_shard[subject_id]
-        subject_idx = self.subj_to_row_idx[subject_id]
+        shard, subject_idx = self.subj_locations[subject_id]
 
         dynamic_data_fp = self.config.tensorized_cohort_dir / "data" / f"{shard}.nrt"
         subject_dynamic_data = JointNestedRaggedTensorDict(tensors_fp=dynamic_data_fp)[subject_idx, st:end]
 
-        subj_schema = self.schema_dfs[shard][subject_idx].to_dict()
+        subj_schema = self.schema_dfs_by_shard[shard][subject_idx]
         static_code = subj_schema["static_code"].item().to_list()
         static_numeric_value = subj_schema["static_numeric_value"].item().to_list()
 
@@ -546,7 +590,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 out["static_numeric_value_mask"] = ~torch.isnan(static_tensorized["static_numeric_value"])
 
         if self.has_task:
-            out[BINARY_LABEL_COL] = torch.Tensor([item[BINARY_LABEL_COL] for item in batch]).bool()
+            out[self.LABEL_COL] = torch.Tensor([item[self.LABEL_COL] for item in batch]).bool()
 
         return out
 

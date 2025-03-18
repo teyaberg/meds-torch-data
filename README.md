@@ -109,8 +109,9 @@ shape: (14, 4)
 ```
 
 Given this data, when we build a PyTorch dataset from it for training, with no task specified, the
-length will be four, as it will correspond to each of the four subjects in the train split. The index
-will also cover the full range of each subject's data.
+length will be four, as it will correspond to each of the four subjects in the train split. The index variable
+contains the list of subject IDs and the end of the allowed region of reading for the dataset. We can also see
+it in dataframe format via the `schema_df`:
 
 ```python
 >>> from meds_torchdata.pytorch_dataset import MEDSTorchDataConfig, MEDSPytorchDataset
@@ -119,9 +120,21 @@ will also cover the full range of each subject's data.
 >>> len(pyd)
 4
 >>> pyd.index
-[(68729, 0, 3), (814703, 0, 3), (239684, 0, 6), (1195293, 0, 8)]
+[(68729, 3), (814703, 3), (239684, 6), (1195293, 8)]
 >>> pyd.subject_ids
 [68729, 814703, 239684, 1195293]
+>>> pyd.schema_df
+shape: (4, 2)
+┌────────────┬─────────────────┐
+│ subject_id ┆ end_event_index │
+│ ---        ┆ ---             │
+│ i64        ┆ u32             │
+╞════════════╪═════════════════╡
+│ 68729      ┆ 3               │
+│ 814703     ┆ 3               │
+│ 239684     ┆ 6               │
+│ 1195293    ┆ 8               │
+└────────────┴─────────────────┘
 
 ```
 

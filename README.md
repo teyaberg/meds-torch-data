@@ -30,7 +30,7 @@ If your input MEDS dataset lives in `$MEDS_ROOT` and you want to store your pre-
 `$PYD_ROOT`, you run:
 
 ```bash
-MEDS_tensorize input_dir="$MEDS_ROOT" output_dir="$PYD_ROOT"
+MTD_preprocess input_dir="$MEDS_ROOT" output_dir="$PYD_ROOT"
 ```
 
 ### Step 3: Use the dataset:
@@ -780,36 +780,63 @@ tensor([False,  True])
 
 #### Data Tensorization and Pre-processing Details
 
-The `MEDS_tensorize` command-line utility is used to convert the input MEDS data into a format that can be
-loaded into the PyTorch dataset class contained in this package. This command performs a very simple series of
-steps:
+_Full documentation for the preprocessing pipeline can be found
+[here](https://meds-torch-data.readthedocs.io/en/latest/api/meds_torchdata/preprocessing/)_
 
-1. Normalize the data into an appropriate, numerical format, including:
-    - Assigning each unique `code` in the data a unique integer index and converting the codes to those
-        integer indices.
-    - Normalizing the `numeric_value` field to have a mean of 0 and a standard deviation of 1. _If you would
-        like additional normalization options supported, such as min-max normalization, please file a GitHub
-        issue._
-2. Produce a set of static, "schema" files that contain the unique time-points of each subjects' events as
-    well as their static measurements.
-3. Produce a set of `JointNestedRaggedTensorDict` object files that contain each subjects' dynamic
-    measurements in the form of nested, ragged tensors that can be efficiently loaded via the associated
-    [package](https://github.com/mmcdermott/nested_ragged_tensors)
+The `MTD_preprocess` command leverages [`hydra`](https://hydra.cc/) to manage the configuration and running
+via the command line. You can see the available options by running the command with the `--help` flag:
 
-These are the only three steps this pipeline performs. Note, however, that this does not mean you can't or
-shouldn't perform additional, _model specific pre-processing_ on the data _prior to running the tensorization
-command_ for your specific use-case. Indeed, if you wish to perform additional pre-processing, such as
+```bash
+== MTD_preprocess ==
 
-- Dropping numeric values entirely and converting to quantile-modified codes.
-- Drop infrequent codes or aggregate codes into higher-order categories.
-- Restrict subjects to a specific time-window
-- Drop subjects with infrequent values
-- Occlude outlier numeric values
-- etc.
+MTD_preprocess is a command line tool for pre-processing MEDS data for use with meds_torchdata.
 
-You should perform these steps on the raw MEDS data _prior to running the tensorization command_. This ensures
-that the data is modified as you desire in an efficient, transparent way and that the tensorization step works
-with data in its final format to avoid any issues with discrepancies in code vocabulary, etc.
+== Config ==
+
+This is the config generated for this run:
+
+MEDS_dataset_dir: ???
+output_dir: ???
+stage_runner_fp: null
+do_overwrite: false
+do_reshard: false
+log_dir: ${output_dir}/.logs
+
+You can override everything using the hydra `key=value` syntax; for example:
+
+MTD_preprocess MEDS_dataset_dir=/path/to/dataset output_dir=/path/to/output do_overwrite=True
+```
+
+The `MTD_preprocess` command runs the following pre-processing stages:
+
+1. \_`fit_normalization_`: Fitting necessary parameters for normalization from the raw data (e.g., the mean and
+    standard deviation of the `numeric_value` field).
+2. \_`fit_vocabulary_indices_`: Assigning unique vocabulary indices to each unique `code` in the data so that
+    they can be transformed to numerical indices for tensorization.
+3. \_`normalization_`: Normalizing the data using the parameters fit in the `fit_normalization` stage to have a
+    mean of 0 and a standard deviation of 1.
+4. \_`tokenization_`: Producing the schema files necessary for the tensorization stage.
+5. \_`tensorization_`: Producing the nested ragged tensor views of the data.
+
+> [!NOTE]
+> If you would like additional normalization options to be supported, please comment on the upstream issue in
+> [MEDS-Transforms](https://github.com/mmcdermott/MEDS_transforms/issues/177), _and_ file an issue here to
+> capture supporting additional options cleanly going forward.
+
+> [!NOTE]
+> You should perform any additional, _model specific pre-processing_ on the data _prior to running the
+> `MTD_preprocess` command_ for your specific use-case. Indeed, if you wish to perform additional
+> pre-processing, such as
+>
+> - Dropping numeric values entirely and converting to quantile-modified codes.
+> - Drop infrequent codes or aggregate codes into higher-order categories.
+> - Restrict subjects to a specific time-window
+> - Drop subjects with infrequent values
+> - Occlude outlier numeric values
+> - etc.
+>   You should perform these steps on the raw MEDS data _prior to running the tensorization command_. This
+>   ensures that the data is modified as you desire in an efficient, transparent way and that the tensorization
+>   step works with data in its final format to avoid any issues with discrepancies in code vocabulary, etc.
 
 ## Performance
 

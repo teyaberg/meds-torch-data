@@ -19,3 +19,20 @@ hydra:
     dir: ${log_dir}
   sweep:
     dir: ${log_dir}
+
+  help:
+    app_name: "MTD_preprocess"
+
+    template: |-2
+      == ${hydra.help.app_name} ==
+
+      ${hydra.help.app_name} is a command line tool for pre-processing MEDS data for use with meds_torchdata.
+
+      == Config ==
+
+      This is the config generated for this run:
+
+      $CONFIG
+      You can override everything using the hydra `key=value` syntax; for example:
+
+      MTD_preprocess MEDS_dataset_dir=/path/to/dataset output_dir=/path/to/output do_overwrite=True

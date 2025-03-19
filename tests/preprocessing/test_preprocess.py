@@ -11,6 +11,33 @@ from . import PREPROCESS_SCRIPT, assert_df_equal, check_NRT_output
 from .test_tensorization import WANT_NRTS
 from .test_tokenization import WANT_SCHEMAS
 
+HELP_STR = """
+== MTD_preprocess ==
+
+MTD_preprocess is a command line tool for pre-processing MEDS data for use with meds_torchdata.
+
+== Config ==
+
+This is the config generated for this run:
+
+MEDS_dataset_dir: ???
+output_dir: ???
+stage_runner_fp: null
+do_overwrite: false
+do_reshard: false
+log_dir: ${output_dir}/.logs
+
+You can override everything using the hydra `key=value` syntax; for example:
+
+MTD_preprocess MEDS_dataset_dir=/path/to/dataset output_dir=/path/to/output do_overwrite=True
+"""
+
+
+def test_preprocess_help():
+    out = subprocess.run(f"{PREPROCESS_SCRIPT} --help", shell=True, check=True, capture_output=True)
+    assert out.returncode == 0
+    assert out.stdout.decode().strip() == HELP_STR.strip()
+
 
 def test_preprocess(tensorized_MEDS_dataset: Path):
     cohort_dir = tensorized_MEDS_dataset

@@ -20,7 +20,7 @@
 pip install meds-torch-data
 ```
 
-### Step 2: Data Tensorization:
+### Step 2: Data Tensorization
 
 > [!WARNING]
 > If your dataset is not sharded by split, you need to run a reshard to split stage first! You can enable this
@@ -33,7 +33,7 @@ If your input MEDS dataset lives in `$MEDS_ROOT` and you want to store your pre-
 MTD_preprocess input_dir="$MEDS_ROOT" output_dir="$PYD_ROOT"
 ```
 
-### Step 3: Use the dataset:
+### Step 3: Use the dataset
 
 To use a dataset, you need to (1) define your configuration object and (2) create the dataset object. The only
 required configuration parameters are `tensorized_cohort_dir`, which points to the root directory containing

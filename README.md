@@ -68,8 +68,8 @@ A good PyTorch dataset class should:
 - Have a minimal, constant resource footprint (memory, CPU, start-up time) during model training and
     inference, _regardless of the overall dataset size_.
 - Perform as much work as possible in _static, re-usable dataset pre-processing_, rather than upon
-    construction or in the __getitem__ method.
-- Induce effectively negligible computational overhead in the __getitem__ method relative to model training.
+    construction or in the `__getitem__` method.
+- Induce effectively negligible computational overhead in the `__getitem__` method relative to model training.
 - Be easily configurable, with a simple, consistent API, and cover the most common use-cases.
 - Encourage efficient use of GPU resources in the resulting batches.
 - Should be comprehensively documented, tested, and benchmarked for performance implications so users can

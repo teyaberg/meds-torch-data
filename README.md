@@ -519,8 +519,8 @@ time_delta_days
 
 If we sampled a different subject, one with more than 5 events, the output we'd get would be dependent on the
 `config.seq_sampling_strategy` option, and could be non-deterministic. By default, this is set to `random`, so
-we'll get a random subset of length 5 each time. Here, so that this code is deterministic, we'll use the
-internal seeded version of the getitem call, which just allows to add a seed onto the normal getitem call.
+we'll get a random subset of length 5 each time. Here, so that this code is deterministic, we'll use
+`_seeded_getitem`, an internal, seeded version of the `__getitem__` call.
 
 ```python
 >>> print_element(pyd._seeded_getitem(3, seed=0))

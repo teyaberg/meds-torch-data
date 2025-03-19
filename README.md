@@ -809,14 +809,14 @@ MTD_preprocess MEDS_dataset_dir=/path/to/dataset output_dir=/path/to/output do_o
 
 The `MTD_preprocess` command runs the following pre-processing stages:
 
-1. \_`fit_normalization_`: Fitting necessary parameters for normalization from the raw data (e.g., the mean and
+1. _`fit_normalization`_: Fitting necessary parameters for normalization from the raw data (e.g., the mean and
     standard deviation of the `numeric_value` field).
-2. \_`fit_vocabulary_indices_`: Assigning unique vocabulary indices to each unique `code` in the data so that
+2. _`fit_vocabulary_indices`_: Assigning unique vocabulary indices to each unique `code` in the data so that
     they can be transformed to numerical indices for tensorization.
-3. \_`normalization_`: Normalizing the data using the parameters fit in the `fit_normalization` stage to have a
+3. _`normalization`_: Normalizing the data using the parameters fit in the `fit_normalization` stage to have a
     mean of 0 and a standard deviation of 1.
-4. \_`tokenization_`: Producing the schema files necessary for the tensorization stage.
-5. \_`tensorization_`: Producing the nested ragged tensor views of the data.
+4. _`tokenization`_: Producing the schema files necessary for the tensorization stage.
+5. _`tensorization`_: Producing the nested ragged tensor views of the data.
 
 > [!NOTE]
 > If you would like additional normalization options to be supported, please comment on the upstream issue in

@@ -83,7 +83,7 @@ def convert_to_NRT(df: pl.LazyFrame) -> JointNestedRaggedTensorDict:
         ValueError: Expected at least one time delta column, found none
         >>> nrt = convert_to_NRT(
         ...     df.with_columns(pl.lit([1, 2]).alias("time_delta_hours")).lazy()
-        ... ) # doctest: +NORMALIZE_WHITESPACE
+        ... )
         Traceback (most recent call last):
             ...
         ValueError: Expected exactly one time delta column, found columns:

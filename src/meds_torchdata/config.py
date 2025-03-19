@@ -4,6 +4,7 @@ This module contains configuration objects for building a PyTorch dataset from a
 enumeration objects for categorical options and a general DataClass configuration object for dataset options.
 """
 
+import logging
 from collections.abc import Generator
 from dataclasses import dataclass
 from enum import StrEnum
@@ -11,6 +12,8 @@ from pathlib import Path
 
 import numpy as np
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
+
+logger = logging.getLogger(__name__)
 
 
 def resolve_rng(rng: np.random.Generator | int | None) -> np.random.Generator:
@@ -162,6 +165,8 @@ class MEDSTorchDataConfig:
 
     Raises:
         FileNotFoundError: If the task_labels_dir or the tensorized_cohort_dir is not a valid directory.
+        ValueError: If the subsequence sampling strategy or static inclusion mode is not valid.
+        ValueError: If the task_labels_dir is specified but the subsequence sampling strategy is not TO_END.
 
     Examples:
         >>> import tempfile
@@ -170,6 +175,20 @@ class MEDSTorchDataConfig:
         ...         tensorized_cohort_dir=tmpdir,
         ...         max_seq_len=10,
         ...     )
+        >>> with tempfile.TemporaryDirectory() as tmpdir:
+        ...     cohort_root = Path(tmpdir) / "tensorized"
+        ...     cohort_root.mkdir()
+        ...     task_labels_dir = Path(tmpdir) / "task_labels"
+        ...     task_labels_dir.mkdir()
+        ...     cfg = MEDSTorchDataConfig(
+        ...         tensorized_cohort_dir=cohort_root,
+        ...         max_seq_len=10,
+        ...         task_labels_dir=task_labels_dir,
+        ...         seq_sampling_strategy="to_end",
+        ...     )
+
+        If the cohort directory doesn't exist, an error is raised.
+
         >>> with tempfile.TemporaryDirectory() as tmpdir: # Error as cohort dir doesn't exist
         ...     MEDSTorchDataConfig(
         ...         tensorized_cohort_dir=Path(tmpdir) / "non_existent",
@@ -178,6 +197,9 @@ class MEDSTorchDataConfig:
         Traceback (most recent call last):
             ...
         FileNotFoundError: tensorized_cohort_dir must be a valid directory. Got ...
+
+        If the task labels directory doesn't exist, an error is raised.
+
         >>> with tempfile.TemporaryDirectory() as tmpdir: # Error as task labels dir doesn't exist
         ...     MEDSTorchDataConfig(
         ...         tensorized_cohort_dir=tmpdir,
@@ -187,6 +209,28 @@ class MEDSTorchDataConfig:
         Traceback (most recent call last):
             ...
         FileNotFoundError: If specified, task_labels_dir must be a valid directory. Got ...
+
+        If the subsequence sampling strategy is not TO_END when a task is specified an error is raised.
+
+        >>> with tempfile.TemporaryDirectory() as tmpdir:
+        ...     cohort_root = Path(tmpdir) / "tensorized"
+        ...     cohort_root.mkdir()
+        ...     task_labels_dir = Path(tmpdir) / "task_labels"
+        ...     task_labels_dir.mkdir()
+        ...     MEDSTorchDataConfig(
+        ...         tensorized_cohort_dir=cohort_root,
+        ...         max_seq_len=10,
+        ...         task_labels_dir=task_labels_dir,
+        ...         seq_sampling_strategy="random",
+        ...     )
+        Traceback (most recent call last):
+            ...
+        ValueError: Not sampling data till the end of the sequence when predicting for a specific task is not
+        permitted! This is because there is no use-case we know of where you would want to do this. If you
+        disagree, please let us know via a GitHub issue.
+
+        If the subsequence sampling strategy or static inclusion mode is not valid, an error is raised.
+
         >>> MEDSTorchDataConfig(tensorized_cohort_dir=".", max_seq_len=3, seq_sampling_strategy="foobar")
         Traceback (most recent call last):
             ...
@@ -221,14 +265,6 @@ class MEDSTorchDataConfig:
                 f"Got {str(self.tensorized_cohort_dir.resolve())}"
             )
 
-        if self.has_task:
-            self.task_labels_dir = Path(self.task_labels_dir)
-            if not self.task_labels_dir.is_dir():
-                raise FileNotFoundError(
-                    "If specified, task_labels_dir must be a valid directory. "
-                    f"Got {str(self.task_labels_dir.resolve())}"
-                )
-
         match self.static_inclusion_mode:
             case str() if self.static_inclusion_mode in {x.value for x in StaticInclusionMode}:
                 self.static_inclusion_mode = StaticInclusionMode(self.static_inclusion_mode)
@@ -244,6 +280,20 @@ class MEDSTorchDataConfig:
                 pass
             case _:
                 raise ValueError(f"Invalid subsequence sampling strategy: {self.seq_sampling_strategy}")
+
+        if self.task_labels_dir is not None:
+            self.task_labels_dir = Path(self.task_labels_dir)
+            if not self.task_labels_dir.is_dir():
+                raise FileNotFoundError(
+                    "If specified, task_labels_dir must be a valid directory. "
+                    f"Got {str(self.task_labels_dir.resolve())}"
+                )
+            if self.seq_sampling_strategy != SubsequenceSamplingStrategy.TO_END:
+                raise ValueError(
+                    "Not sampling data till the end of the sequence when predicting for a specific task is "
+                    "not permitted! This is because there is no use-case we know of where you would want to "
+                    "do this. If you disagree, please let us know via a GitHub issue."
+                )
 
     @property
     def schema_dir(self) -> Path:
@@ -285,23 +335,6 @@ class MEDSTorchDataConfig:
             yield shard, schema_fp
 
     @property
-    def has_task(self) -> bool:
-        """Returns whether the config has a task specified.
-
-        Examples:
-            >>> with tempfile.TemporaryDirectory() as tmpdir:
-            ...     tensorized_root = Path(tmpdir) / "tensorized"
-            ...     tensorized_root.mkdir()
-            ...     cfg_no_task = MEDSTorchDataConfig(tensorized_root, 2)
-            ...     task_labels_dir = Path(tmpdir) / "task_labels"
-            ...     task_labels_dir.mkdir()
-            ...     cfg_task = MEDSTorchDataConfig(tensorized_root, 2, task_labels_dir=task_labels_dir)
-            ...     print(f"No task dir: {cfg_no_task.has_task}, Task dir: {cfg_task.has_task}")
-            No task dir: False, Task dir: True
-        """
-        return self.task_labels_dir is not None
-
-    @property
     def task_labels_fps(self) -> list[Path] | None:
         """Returns the list of task label files for this configuration, or `None` if no task is specified.
 
@@ -318,14 +351,16 @@ class MEDSTorchDataConfig:
             ...     (task_labels_dir / "labels_1.parquet").touch()
             ...     (task_labels_dir / "nested").mkdir()
             ...     (task_labels_dir / "nested/labels_2.parquet").touch()
-            ...     cfg_task = MEDSTorchDataConfig(tensorized_root, 2, task_labels_dir=task_labels_dir)
-            ...     print(f"Task dir: {cfg_task.task_labels_fps}") # doctest: +NORMALIZE_WHITESPACE
+            ...     cfg_task = MEDSTorchDataConfig(
+            ...         tensorized_root, 2, task_labels_dir=task_labels_dir, seq_sampling_strategy="to_end"
+            ...     )
+            ...     print(f"Task dir: {cfg_task.task_labels_fps}")
             No task dir: None
             Task dir: [PosixPath('/tmp/.../task_labels/labels_1.parquet'),
                        PosixPath('/tmp/.../task_labels/nested/labels_2.parquet')]
         """
 
-        return list(self.task_labels_dir.rglob("*.parquet")) if self.has_task else None
+        return list(self.task_labels_dir.rglob("*.parquet")) if self.task_labels_dir else None
 
     def process_dynamic_data(
         self,

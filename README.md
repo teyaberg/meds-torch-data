@@ -23,21 +23,74 @@ pip install meds-torch-data
 ### Step 2: Data Tensorization:
 
 > [!WARNING]
-> If your dataset is not sharded by split, you need to run a reshard to split stage first! You can enable this by adding the `do_reshard=True` argument to the command below.
+> If your dataset is not sharded by split, you need to run a reshard to split stage first! You can enable this
+> by adding the `do_reshard=True` argument to the command below.
+
+If your input MEDS dataset lives in `$MEDS_ROOT` and you want to store your pre-processed files in
+`$PYD_ROOT`, you run:
 
 ```bash
-MEDS_tensorize input_dir=... output_dir=...
+MEDS_tensorize input_dir="$MEDS_ROOT" output_dir="$PYD_ROOT"
 ```
 
 ### Step 3: Use the dataset:
 
-In your code, simply:
+To use a dataset, you need to (1) define your configuration object and (2) create the dataset object. The only
+required configuration parameters are `tensorized_cohort_dir`, which points to the root directory containing
+the pre-processed data on disk (`$PYD_ROOT` in the above example), and `max_seq_len`, which is the maximum
+sequence length you want to use for your model. Here's an example:
 
 ```python
-from meds_torchdata import MEDSPytorchDataset
+import os
+from meds_torchdata import MEDSPytorchDataset, MEDSTorchDataConfig
 
-pyd = MEDSPytorchDataset(...)
+cfg = MEDSTorchDataConfig(tensorized_cohort_dir=os.environ["PYD_ROOT"], max_seq_len=512)
+pyd = MEDSPytorchDataset(cfg, split="train")
 ```
+
+If you want to use a specific binary classification task, you can add the `task_labels_dir` parameter to the
+configuration object. This should point to a directory containing the sharded MEDS label format parquet files
+for the labels. The sharding scheme is arbitrary and will not be reflected in the dataset.
+
+That's it!
+
+> [!NOTE]
+> Only binary classification tasks are supported at this time. If you need multi-class classification or other
+> kinds of tasks, please file a [GitHub issue](https://github.com/mmcdermott/meds-torch-data/issues)
+
+## 📚 Documentation
+
+### Design Principles
+
+A good PyTorch dataset class should:
+
+- Be easy to use
+- Have a minimal, constant resource footprint (memory, CPU, start-up time) during model training and
+    inference, _regardless of the overall dataset size_.
+- Perform as much work as possible in _static, re-usable dataset pre-processing_, rather than upon
+    construction or in the __getitem__ method.
+- Induce effectively negligible computational overhead in the __getitem__ method relative to model training.
+- Be easily configurable, with a simple, consistent API, and cover the most common use-cases.
+- Encourage efficient use of GPU resources in the resulting batches.
+- Should be comprehensively documented, tested, and benchmarked for performance implications so users can
+    use it reliably and effectively.
+
+To achieve this, MEDS TorchData leverages the following design principles:
+
+1. **Lazy Loading**: Data is loaded only when needed, and only the data needed for the current batch is
+    loaded.
+2. **Efficient Loading**: Data is loaded efficiently leveraging the
+    [HuggingFace Safetensors](https://huggingface.co/docs/safetensors/en/index) library for raw IO through
+    the nested, ragged interface encoded in the
+    [Nested Ragged Tensors](https://github.com/mmcdermott/nested_ragged_tensors) library.
+3. **Configurable, Transparent Pre-processing**: Mandatory data pre-processing prior to effective use in
+    this library is managed through a simple
+    [MEDS-Transforms](https://meds-transforms.readthedocs.io/en/latest/) pipeline which can be run on any
+    MEDS dataset, after any model-specific pre-processing, via a transparent configuration file.
+4. **Continuous Integration**: The library is continuously tested and benchmarked for performance
+    implications, and the results are available to users.
+
+### Examples and Detailed Usage for the Configuration Object and Dataset Class
 
 To see how this works, let's look at some examples. These examples will be powered by some synthetic data
 defined as "fixtures" in this package's pytest stack; namely, we'll use the following fixtures:
@@ -48,16 +101,21 @@ defined as "fixtures" in this package's pytest stack; namely, we'll use the foll
     this dataset, but the latter has a task defined.
 - `tensorized_MEDS_dataset` fixture that points to a Path containing the tensorized and schema files for
     the `simple_static_MEDS` dataset.
-- `tensorized_MEDS_dataset_with_task` fixture that points to a Path containing the tensorized and schema
-    files for the `simple_static_MEDS_dataset_with_task` dataset.
+- `tensorized_MEDS_dataset_with_task` fixture that points to a tuple containing:
+    - A Path containing the tensorized and schema files for the `simple_static_MEDS_dataset_with_task` dataset
+    - A Path pointing to the root task directory for the dataset
+    - The specific task name for the dataset. Task label files will be stored in a subdir of the root task
+        directory with this name.
 
 You can find these in either the [`conftest.py`](conftest.py) file for this repository or the
 [`meds_testing_helpers`](https://github.com/Medical-Event-Data-Standard/meds_testing_helpers) package, which
 this package leverages for testing.
 
-To start, let's take a look at this syntehtic data. It is sharded by split, and we'll look at the train split
-first, which has two shards (we convert to polars just for prettier printing). It has four subjects
-across the two shards.
+#### Synthetic Data
+
+To start, let's take a look at this synthetic data. It is sharded by split, and we'll look at the train split
+first, which has two shards (we convert to polars just for prettier printing). It has four subjects across the
+two shards:
 
 ```python
 >>> import polars as pl
@@ -108,13 +166,105 @@ shape: (14, 4)
 
 ```
 
-Given this data, when we build a PyTorch dataset from it for training, with no task specified, the
-length will be four, as it will correspond to each of the four subjects in the train split. The index variable
-contains the list of subject IDs and the end of the allowed region of reading for the dataset. We can also see
-it in dataframe format via the `schema_df`:
+#### `MEDSTorchDataConfig` Configuration Object
+
+_Full API documentation for the configuration object can be found
+[here](https://meds-torch-data.readthedocs.io/en/latest/api/meds_torchdata/config/#meds_torchdata.config.MEDSTorchDataConfig)._
+
+The configuration object contains two kinds of parameters: Data processing parameters and file paths.
+Data processing parameters include:
+
+- `max_seq_len`: The maximum sequence length to use for the model.
+- `seq_sampling_strategy`: The strategy to use when sampling sub-sequences to return for input sequences
+    longer than `max_seq_len`.
+- `static_inclusion_mode`: The mode to use when including static data in the output.
+- `do_flatten_tensors`: Whether to return sequences at the _measurement_ level (`True`) or the _event_ level
+    (`False`). Note that here, we use "_measurement_" to refer to a single row (observation) in the raw MEDS
+    data, and "_event_" to refer to all measurements taken at a single time-point.
+
+Of these, `seq_sampling_strategy` and `static_inclusion_mode` are restricted, and must be of the
+[`SubsequenceSamplingStrategy`](https://meds-torch-data.readthedocs.io/en/latest/api/meds_torchdata/config/#meds_torchdata.config.SubsequenceSamplingStrategy)
+and
+[`StaticInclusionMode`](https://meds-torch-data.readthedocs.io/en/latest/api/meds_torchdata/config/#meds_torchdata.config.StaticInclusionMode)
+`StrEnum`s, respectively:
+
+- `seq_sampling_strategy`: One of `["random", "to_end", "from_start"]` (defaults to `"random"`).
+- `static_inclusion_mode`: One of `["include", "omit"]` (defaults to `"include"`).
+
+File path parameters include:
+
+- `tensorized_cohort_dir`: The directory containing the tensorized data.
+- `task_labels_dir`: The directory containing the task labels files.
+
+Let's start by building a configuration object for this data and inspect some of its file-path related
+properties and helpers:
 
 ```python
->>> from meds_torchdata.pytorch_dataset import MEDSTorchDataConfig, MEDSPytorchDataset
+>>> from meds_torchdata import MEDSTorchDataConfig
+>>> cfg = MEDSTorchDataConfig(tensorized_MEDS_dataset, max_seq_len=5)
+>>> cfg.tensorized_cohort_dir
+PosixPath('/tmp/tmp...')
+>>> cfg.schema_dir
+PosixPath('/tmp/tmp.../tokenization/schemas')
+>>> print(sorted(list(cfg.schema_fps)))
+[('held_out/0', PosixPath('/tmp/tmp.../tokenization/schemas/held_out/0.parquet')),
+ ('train/0', PosixPath('/tmp/tmp.../tokenization/schemas/train/0.parquet')),
+ ('train/1', PosixPath('/tmp/tmp.../tokenization/schemas/train/1.parquet')),
+ ('tuning/0', PosixPath('/tmp/tmp.../tokenization/schemas/tuning/0.parquet'))]
+>>> print(cfg.task_labels_dir)
+None
+>>> print(cfg.task_labels_fps)
+None
+
+```
+
+If we specify a `task_labels_dir` parameter, the config operates in task-specific mode. This allows us to use
+the task-specific helpers, but it also mandates we set `seq_sampling_strategy` to `"to_end"` as you shouldn't
+try to predict a downstream task without leveraging the most recent data.
+
+```python
+>>> cohort_dir, tasks_dir, task_name = tensorized_MEDS_dataset_with_task
+>>> cfg = MEDSTorchDataConfig(
+...     cohort_dir, max_seq_len=5, task_labels_dir=(tasks_dir / task_name)
+... )
+Traceback (most recent call last):
+    ...
+ValueError: Not sampling data till the end of the sequence when predicting for a specific task is not
+permitted! This is because there is no use-case we know of where you would want to do this. If you disagree,
+please let us know via a GitHub issue.
+>>> cfg = MEDSTorchDataConfig(
+...     cohort_dir, max_seq_len=5, task_labels_dir=(tasks_dir / task_name), seq_sampling_strategy="to_end"
+... )
+>>> cfg.task_labels_dir
+PosixPath('/tmp/tmp.../task_labels/boolean_value_task')
+>>> print(list(cfg.task_labels_fps))
+[PosixPath('/tmp/tmp.../task_labels/boolean_value_task/labels_A.parquet.parquet'),
+ PosixPath('/tmp/tmp.../task_labels/boolean_value_task/labels_B.parquet.parquet')]
+
+```
+
+Based on the `seq_sampling_strategy`, `do_flatten_tensors`, and `max_seq_len` parameters, the configuration
+object also has the
+[`process_dynamic_data`](https://meds-torch-data.readthedocs.io/en/latest/api/meds_torchdata/config/#meds_torchdata.config.MEDSTorchDataConfig.process_dynamic_data)
+helper function to slice the subject's dynamic data appropriately. This function is used internally, and you
+will not need to use it yourself.
+
+#### `MEDSPytorchDataset` Dataset Class
+
+_Full API documentation for the dataset class can be found
+[here](https://meds-torch-data.readthedocs.io/en/latest/api/meds_torchdata/pytorch_dataset/#meds_torchdata.pytorch_dataset.MEDSPytorchDataset)._
+
+Now let's build a dataset object from the synthetic data.
+
+##### Dataset "Schema"
+
+When we build a PyTorch dataset from it for training, with no task specified, the length will be four, as it
+will correspond to each of the four subjects in the train split. The index variable contains the list of
+subject IDs and the end of the allowed region of reading for the dataset. We can also see it in dataframe
+format via the `schema_df`:
+
+```python
+>>> from meds_torchdata import MEDSPytorchDataset
 >>> cfg = MEDSTorchDataConfig(tensorized_cohort_dir=tensorized_MEDS_dataset, max_seq_len=5)
 >>> pyd = MEDSPytorchDataset(cfg, split="train")
 >>> len(pyd)
@@ -190,6 +340,76 @@ shape: (4, 3)
 
 ```
 
+The schema changes to reflect the different split if we change the split:
+
+```python
+>>> pyd_tuning = MEDSPytorchDataset(cfg, split="tuning")
+>>> pyd_tuning.schema_df
+shape: (1, 2)
+┌────────────┬─────────────────┐
+│ subject_id ┆ end_event_index │
+│ ---        ┆ ---             │
+│ i64        ┆ u32             │
+╞════════════╪═════════════════╡
+│ 754281     ┆ 3               │
+└────────────┴─────────────────┘
+>>> pyd_held_out = MEDSPytorchDataset(cfg, split="held_out")
+>>> pyd_held_out.schema_df
+shape: (1, 2)
+┌────────────┬─────────────────┐
+│ subject_id ┆ end_event_index │
+│ ---        ┆ ---             │
+│ i64        ┆ u32             │
+╞════════════╪═════════════════╡
+│ 1500733    ┆ 5               │
+└────────────┴─────────────────┘
+
+```
+
+If you use a non-existent split or have something misconfigured, you'll get an error upon Dataset creation:
+
+```python
+>>> pyd_bad = MEDSPytorchDataset(cfg, split="bad_split")
+Traceback (most recent call last):
+    ...
+FileNotFoundError: No schema files found in /tmp/.../tokenization/schemas! If your data is not sharded by
+split, this error may occur because this codebase does not handle non-split sharded data. See Issue #79 for
+tracking this issue.
+
+```
+
+We can also inspect the schema for a dataset built with downstream task labels:
+
+```python
+>>> cohort_dir, tasks_dir, task_name = tensorized_MEDS_dataset_with_task
+>>> cfg_with_task = MEDSTorchDataConfig(
+...     cohort_dir, max_seq_len=5, task_labels_dir=(tasks_dir / task_name), seq_sampling_strategy="to_end"
+... )
+>>> pyd_with_task = MEDSPytorchDataset(cfg_with_task, split="train")
+>>> pyd_with_task.schema_df
+shape: (13, 4)
+┌────────────┬─────────────────┬─────────────────────┬───────────────┐
+│ subject_id ┆ end_event_index ┆ prediction_time     ┆ boolean_value │
+│ ---        ┆ ---             ┆ ---                 ┆ ---           │
+│ i64        ┆ u32             ┆ datetime[μs]        ┆ bool          │
+╞════════════╪═════════════════╪═════════════════════╪═══════════════╡
+│ 239684     ┆ 3               ┆ 2010-05-11 18:00:00 ┆ false         │
+│ 239684     ┆ 4               ┆ 2010-05-11 18:30:00 ┆ true          │
+│ 239684     ┆ 5               ┆ 2010-05-11 19:00:00 ┆ true          │
+│ 1195293    ┆ 3               ┆ 2010-06-20 19:30:00 ┆ false         │
+│ 1195293    ┆ 4               ┆ 2010-06-20 20:00:00 ┆ true          │
+│ …          ┆ …               ┆ …                   ┆ …             │
+│ 68729      ┆ 2               ┆ 2010-05-26 04:00:00 ┆ true          │
+│ 68729      ┆ 2               ┆ 2010-05-26 04:30:00 ┆ true          │
+│ 814703     ┆ 2               ┆ 2010-02-05 06:00:00 ┆ false         │
+│ 814703     ┆ 2               ┆ 2010-02-05 06:30:00 ┆ true          │
+│ 814703     ┆ 2               ┆ 2010-02-05 07:00:00 ┆ true          │
+└────────────┴─────────────────┴─────────────────────┴───────────────┘
+
+```
+
+##### Returned items
+
 While the raw data has codes as strings, naturally, when embedded in the pytorch dataset, they'll get
 converted to integers. This happens during the forementioned tensorization step. We can see how the codes are
 mapped to integers by looking at the output code metadata of that step:
@@ -251,6 +471,30 @@ time_delta_days
 
 ```
 
+We can also look at what would be returned if we had included a task in the dataset:
+
+```python
+>>> print_element(pyd_with_task[0])
+static_code (list):
+[7, 9]
+static_numeric_value (list):
+[nan, 1.5770268440246582]
+dynamic (JointNestedRaggedTensorDict):
+code
+[ 1 10 11 10 11]
+.
+numeric_value
+[       nan -0.5697369 -1.2714673 -0.4375474 -1.1680276]
+.
+time_delta_days
+[1.0726737e+04 0.0000000e+00 0.0000000e+00 4.8263888e-03 0.0000000e+00]
+boolean_value (bool):
+False
+
+```
+
+We can see in this case that the `boolean_value` field is included in the output, capturing the task label.
+
 The contents of `pyd[0]` are stable, because index element 0, `(68729, 0, 3)`, indicates the first subject has
 a sequence of length 3 in the dataset and our `max_seq_len` is set to 5.
 
@@ -310,6 +554,48 @@ time_delta_days
 
 ```
 
+Of course, if we set `seq_sampling_strategy` to something other than `"random"`, this non-determinism would
+disappear:
+
+```python
+>>> cfg_from_start = MEDSTorchDataConfig(
+...     tensorized_cohort_dir=tensorized_MEDS_dataset, max_seq_len=5, seq_sampling_strategy="from_start"
+... )
+>>> pyd_from_start = MEDSPytorchDataset(cfg_from_start, split="train")
+>>> print_element(pyd_from_start[3])
+static_code (list):
+[6, 9]
+static_numeric_value (list):
+[nan, 0.06802856922149658]
+dynamic (JointNestedRaggedTensorDict):
+code
+[ 5  1 10 11 10]
+.
+numeric_value
+[        nan         nan -0.23133166  0.79735875  0.03833488]
+.
+time_delta_days
+[          nan 1.1688809e+04 0.0000000e+00 0.0000000e+00 1.1574074e-03]
+>>> print_element(pyd_from_start[3])
+static_code (list):
+[6, 9]
+static_numeric_value (list):
+[nan, 0.06802856922149658]
+dynamic (JointNestedRaggedTensorDict):
+code
+[ 5  1 10 11 10]
+.
+numeric_value
+[        nan         nan -0.23133166  0.79735875  0.03833488]
+.
+time_delta_days
+[          nan 1.1688809e+04 0.0000000e+00 0.0000000e+00 1.1574074e-03]
+
+
+```
+
+##### Batches, Collation, and Dataloaders
+
 We can also examine not just individual elements, but full batches, that we can access with the appropriate
 `collate` function via the built in `get_dataloader` method:
 
@@ -339,6 +625,33 @@ tensor([[ 0.0000, -0.5438],
 static_numeric_value_mask (Tensor):
 tensor([[False,  True],
         [False,  True]])
+>>> print_element(next(iter(pyd_with_task.get_dataloader(batch_size=2))))
+time_delta_days (Tensor):
+tensor([[1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03, 0.0000e+00],
+        [0.0000e+00, 4.8264e-03, 0.0000e+00, 2.5544e-02, 0.0000e+00]])
+code (Tensor):
+tensor([[ 1, 10, 11, 10, 11],
+        [11, 10, 11, 10, 11]])
+mask (Tensor):
+tensor([[True, True, True, True, True],
+        [True, True, True, True, True]])
+numeric_value (Tensor):
+tensor([[ 0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01, -1.1680e+00],
+        [-1.2715e+00, -4.3755e-01, -1.1680e+00,  1.3220e-03, -1.3749e+00]])
+numeric_value_mask (Tensor):
+tensor([[False,  True,  True,  True,  True],
+        [ True,  True,  True,  True,  True]])
+static_code (Tensor):
+tensor([[7, 9],
+        [7, 9]])
+static_numeric_value (Tensor):
+tensor([[0.0000, 1.5770],
+        [0.0000, 1.5770]])
+static_numeric_value_mask (Tensor):
+tensor([[False,  True],
+        [False,  True]])
+boolean_value (Tensor):
+tensor([False,  True])
 
 ```
 
@@ -413,55 +726,70 @@ tensor([[ 0.0000, -0.5438],
 static_numeric_value_mask (Tensor):
 tensor([[False,  True],
         [False,  True]])
+>>> pyd_with_task.config.do_flatten_tensors = False
+>>> print_element(next(iter(pyd_with_task.get_dataloader(batch_size=2))))
+time_delta_days (Tensor):
+tensor([[0.0000e+00, 1.0727e+04, 4.8264e-03, 0.0000e+00],
+        [0.0000e+00, 1.0727e+04, 4.8264e-03, 2.5544e-02]])
+code (Tensor):
+tensor([[[ 5,  0,  0],
+         [ 1, 10, 11],
+         [10, 11,  0],
+         [ 0,  0,  0]],
+<BLANKLINE>
+        [[ 5,  0,  0],
+         [ 1, 10, 11],
+         [10, 11,  0],
+         [10, 11,  0]]])
+mask (Tensor):
+tensor([[ True,  True,  True, False],
+        [ True,  True,  True,  True]])
+numeric_value (Tensor):
+tensor([[[ 0.0000e+00,  0.0000e+00,  0.0000e+00],
+         [ 0.0000e+00, -5.6974e-01, -1.2715e+00],
+         [-4.3755e-01, -1.1680e+00,  0.0000e+00],
+         [ 0.0000e+00,  0.0000e+00,  0.0000e+00]],
+<BLANKLINE>
+        [[ 0.0000e+00,  0.0000e+00,  0.0000e+00],
+         [ 0.0000e+00, -5.6974e-01, -1.2715e+00],
+         [-4.3755e-01, -1.1680e+00,  0.0000e+00],
+         [ 1.3220e-03, -1.3749e+00,  0.0000e+00]]])
+numeric_value_mask (Tensor):
+tensor([[[False,  True,  True],
+         [False,  True,  True],
+         [ True,  True,  True],
+         [ True,  True,  True]],
+<BLANKLINE>
+        [[False,  True,  True],
+         [False,  True,  True],
+         [ True,  True,  True],
+         [ True,  True,  True]]])
+static_code (Tensor):
+tensor([[7, 9],
+        [7, 9]])
+static_numeric_value (Tensor):
+tensor([[0.0000, 1.5770],
+        [0.0000, 1.5770]])
+static_numeric_value_mask (Tensor):
+tensor([[False,  True],
+        [False,  True]])
+boolean_value (Tensor):
+tensor([False,  True])
 
 ```
 
-## 📚 Documentation
-
-### Design Principles
-
-A good PyTorch dataset class should:
-
-- Be easy to use
-- Have a minimal, constant resource footprint (memory, CPU, start-up time) during model training and
-    inference, _regardless of the overall dataset size_.
-- Perform as much work as possible in _static, re-usable dataset pre-processing_, rather than upon
-    construction or in the __getitem__ method.
-- Induce effectively negligible computational overhead in the __getitem__ method relative to model training.
-- Be easily configurable, with a simple, consistent API, and cover the most common use-cases.
-- Encourage efficient use of GPU resources in the resulting batches.
-- Should be comprehensively documented, tested, and benchmarked for performance implications so users can
-    use it reliably and effectively.
-
-To achieve this, MEDS TorchData leverages the following design principles:
-
-1. **Lazy Loading**: Data is loaded only when needed, and only the data needed for the current batch is
-    loaded.
-2. **Efficient Loading**: Data is loaded efficiently leveraging the
-    [HuggingFace Safetensors](https://huggingface.co/docs/safetensors/en/index) library for raw IO through
-    the nested, ragged interface encoded in the
-    [Nested Ragged Tensors](https://github.com/mmcdermott/nested_ragged_tensors) library.
-3. **Configurable, Transparent Pre-processing**: Mandatory data pre-processing prior to effective use in
-    this library is managed through a simple
-    [MEDS-Transforms](https://meds-transforms.readthedocs.io/en/latest/) pipeline which can be run on any
-    MEDS dataset, after any model-specific pre-processing, via a transparent configuration file.
-4. **Continuous Integration**: The library is continuously tested and benchmarked for performance
-    implications, and the results are available to users.
-
-### API and Usage
-
-#### Data Tensorization and Pre-processing
+#### Data Tensorization and Pre-processing Details
 
 The `MEDS_tensorize` command-line utility is used to convert the input MEDS data into a format that can be
 loaded into the PyTorch dataset class contained in this package. This command performs a very simple series of
 steps:
 
 1. Normalize the data into an appropriate, numerical format, including:
-    \- Assigning each unique `code` in the data a unique integer index and converting the codes to those
-    integer indices.
-    \- Normalizing the `numeric_value` field to have a mean of 0 and a standard deviation of 1. _If you would
-    like additional normalization options supported, such as min-max normalization, please file a GitHub
-    issue._
+    - Assigning each unique `code` in the data a unique integer index and converting the codes to those
+        integer indices.
+    - Normalizing the `numeric_value` field to have a mean of 0 and a standard deviation of 1. _If you would
+        like additional normalization options supported, such as min-max normalization, please file a GitHub
+        issue._
 2. Produce a set of static, "schema" files that contain the unique time-points of each subjects' events as
     well as their static measurements.
 3. Produce a set of `JointNestedRaggedTensorDict` object files that contain each subjects' dynamic
@@ -478,15 +806,10 @@ command_ for your specific use-case. Indeed, if you wish to perform additional p
 - Drop subjects with infrequent values
 - Occlude outlier numeric values
 - etc.
-    You should perform these steps on the raw MEDS data _prior to running the tensorization command_. This ensures
-    that the data is modified as you desire in an efficient, transparent way and that the tensorization step works
-    with data in its final format to avoid any issues with discrepancies in code vocabulary, etc.
 
-#### Dataset Class
-
-Once the data has been tensorized, you can use the `MEDSPytorchDataset` class to load the data into a PyTorch
-dataset suitable to begin modeling! This dataset class takes a configuration object as input, with the
-following fields:
+You should perform these steps on the raw MEDS data _prior to running the tensorization command_. This ensures
+that the data is modified as you desire in an efficient, transparent way and that the tensorization step works
+with data in its final format to avoid any issues with discrepancies in code vocabulary, etc.
 
 ## Performance
 

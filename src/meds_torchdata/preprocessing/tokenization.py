@@ -38,10 +38,10 @@ def fill_to_nans(col: str | pl.Expr) -> pl.Expr:
         A `pl.Expr` object that fills infinite and null values with NaN.
 
     Examples:
-        >>> print(fill_to_nans("value")) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(fill_to_nans("value"))
         .when([(col("value").is_infinite()) |
                (col("value").is_null())]).then(dyn float: NaN).otherwise(col("value"))
-        >>> print(fill_to_nans(pl.col("time_delta"))) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(fill_to_nans(pl.col("time_delta")))
         .when([(col("time_delta").is_infinite()) |
                (col("time_delta").is_null())]).then(dyn float: NaN).otherwise(col("time_delta"))
         >>> df = pl.DataFrame({"value": [1.0, float("inf"), None, -float("inf"), 2.0]})

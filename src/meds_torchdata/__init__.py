@@ -7,3 +7,8 @@ try:
 except PackageNotFoundError:  # pragma: no cover
     # package is not installed
     __version__ = "unknown"
+
+from .config import MEDSTorchDataConfig  # noqa: F401
+from .pytorch_dataset import MEDSPytorchDataset  # noqa: F401
+
+__all__ = ["MEDSPytorchDataset", "MEDSTorchDataConfig"]

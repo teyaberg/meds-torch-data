@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 from meds_testing_helpers.dataset import MEDSDataset
 
-from meds_torchdata.pytorch_dataset import MEDSPytorchDataset, MEDSTorchDataConfig
+from meds_torchdata import MEDSPytorchDataset, MEDSTorchDataConfig
 from tests.preprocessing import PREPROCESS_SCRIPT
 
 
@@ -73,6 +73,7 @@ def sample_pytorch_dataset_with_task(
         tensorized_cohort_dir=cohort_dir,
         task_labels_dir=(tasks_dir / task_name),
         max_seq_len=10,
+        seq_sampling_strategy="to_end",
     )
 
     return MEDSPytorchDataset(config, split="train")

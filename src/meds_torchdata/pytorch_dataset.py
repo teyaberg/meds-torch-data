@@ -66,7 +66,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         If you pass in a non-existent split, you'll get an error as it won't be able to find the schema files:
 
-        >>> pyd = MEDSPytorchDataset(cfg, split="nonexistent") # doctest: +NORMALIZE_WHITESPACE
+        >>> pyd = MEDSPytorchDataset(cfg, split="nonexistent")
         Traceback (most recent call last):
             ...
         FileNotFoundError: No schema files found in /tmp/.../tokenization/schemas! If your data is not sharded
@@ -298,7 +298,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             >>> sample_pytorch_dataset_with_task.has_task
             True
         """
-        return self.config.has_task
+        return self.config.task_labels_dir is not None
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         """Retrieve a single data point from the dataset.
@@ -487,7 +487,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         Examples:
             >>> batch = [sample_pytorch_dataset[0], sample_pytorch_dataset[1]]
-            >>> sample_pytorch_dataset.collate(batch) # doctest: +NORMALIZE_WHITESPACE
+            >>> sample_pytorch_dataset.collate(batch)
             {'time_delta_days': tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
                                         [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]]),
              'code': tensor([[ 5,  3, 10, 11,  4],
@@ -505,7 +505,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
              'static_numeric_value_mask': tensor([[False,  True],
                                                   [False,  True]])}
             >>> batch = [sample_pytorch_dataset_with_task[0], sample_pytorch_dataset_with_task[1]]
-            >>> sample_pytorch_dataset_with_task.collate(batch) # doctest: +NORMALIZE_WHITESPACE
+            >>> sample_pytorch_dataset_with_task.collate(batch)
             {'time_delta_days': tensor([[0.0000e+00, 1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
                                          0.0000e+00, 0.0000e+00, 0.0000e+00],
                                         [0.0000e+00, 1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
@@ -532,7 +532,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
             >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.OMIT
             >>> batch = [sample_pytorch_dataset[0], sample_pytorch_dataset[1]]
-            >>> sample_pytorch_dataset.collate(batch) # doctest: +NORMALIZE_WHITESPACE
+            >>> sample_pytorch_dataset.collate(batch)
             {'time_delta_days': tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
                                         [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]]),
              'code': tensor([[ 5,  3, 10, 11,  4],
@@ -590,7 +590,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         Examples:
             >>> DL = sample_pytorch_dataset.get_dataloader(batch_size=2, shuffle=False)
-            >>> next(iter(DL)) # doctest: +NORMALIZE_WHITESPACE
+            >>> next(iter(DL))
             {'time_delta_days': tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
                                         [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]]),
              'code': tensor([[ 5,  3, 10, 11,  4],

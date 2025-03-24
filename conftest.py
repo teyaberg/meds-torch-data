@@ -1,6 +1,7 @@
 """Test set-up and fixtures code."""
 
 
+import importlib
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -8,7 +9,10 @@ from typing import Any
 
 import pytest
 
+import meds_torchdata.pytest_plugin
 from meds_torchdata import MEDSPytorchDataset
+
+importlib.reload(meds_torchdata.pytest_plugin)
 
 
 @pytest.fixture(scope="session", autouse=True)

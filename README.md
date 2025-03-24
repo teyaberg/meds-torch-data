@@ -90,7 +90,7 @@ To achieve this, MEDS TorchData leverages the following design principles:
 4. **Continuous Integration**: The library is continuously tested and benchmarked for performance
     implications, and the results are available to users.
 
-### Examples and Detailed Usage for the Configuration Object and Dataset Class
+### Examples and Detailed Usage
 
 To see how this works, let's look at some examples. These examples will be powered by some synthetic data
 defined as "fixtures" in this package's pytest stack; namely, we'll use the following fixtures:
@@ -837,6 +837,28 @@ The `MTD_preprocess` command runs the following pre-processing stages:
 >   You should perform these steps on the raw MEDS data _prior to running the tensorization command_. This
 >   ensures that the data is modified as you desire in an efficient, transparent way and that the tensorization
 >   step works with data in its final format to avoid any issues with discrepancies in code vocabulary, etc.
+
+### Testing Models that Use this Package
+
+If you use this package to build your model, we also expose some pytest fixtures that can be used to test your
+models. These fixtures are designed to be used with the `pytest` testing framework. These fixtures are similar
+to the four fixtures we used above in the [Examples and Detailed Usage](#examples-and-detailed-usage) section.
+Namely, they are:
+
+- `tensorized_MEDS_dataset` fixture that points to a Path containing the tensorized and schema files for
+    the `simple_static_MEDS` dataset.
+- `tensorized_MEDS_dataset_with_task` fixture that points to a tuple containing:
+    - A Path containing the tensorized and schema files for the `simple_static_MEDS_dataset_with_task` dataset
+    - A Path pointing to the root task directory for the dataset
+    - The specific task name for the dataset. Task label files will be stored in a subdir of the root task
+        directory with this name.
+- `sample_pytorch_dataset`: This will yield a `MEDSPytorchDataset` object built using the
+    `tensorized_MEDS_dataset` data, without a downstream task.
+- `sample_pytorch_dataset_with_task`: This will yield a `MEDSPytorchDataset` object built using the
+    `tensorized_MEDS_dataset_with_task` data, with the associated downstream task.
+
+You can rely on these fixtures to test your model in the normal way, directly having your model train using
+input batches derived from the sample datasets.
 
 ## Performance
 

@@ -8,8 +8,6 @@ from pathlib import Path
 
 import pytest
 
-PREPROCESS_SCRIPT = "MTD_preprocess"
-
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -36,7 +34,7 @@ def _test_dir(request):
 def benchmark_dataset(request, generated_sample_MEDS: Path) -> Path:
     with _test_dir(request) as cohort_dir:
         command = [
-            str(PREPROCESS_SCRIPT),
+            "MTD_preprocess",
             f"MEDS_dataset_dir={str(generated_sample_MEDS)}",
             f"output_dir={cohort_dir}",
             "do_reshard=True",

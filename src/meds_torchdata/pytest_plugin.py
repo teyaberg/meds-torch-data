@@ -44,7 +44,7 @@ def tensorized_MEDS_dataset_with_task(
 
     D = MEDSDataset(root_dir=simple_static_MEDS_dataset_with_task)
 
-    if len(D.task_names) != 1:
+    if len(D.task_names) != 1:  # pragma: no cover
         raise ValueError("Expected only one task in the dataset.")
 
     yield cohort_dir, D.task_root_dir, D.task_names[0]

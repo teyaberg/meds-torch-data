@@ -20,15 +20,15 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "polars", "nested_ragged_tensors>=0.1.0", "numpy", "ml-mixins", "torch", "MEDS_transforms>=0.1.0",
-    "hydra-core", "omegaconf"
+    "pytest", "polars", "nested_ragged_tensors>=0.1.0", "numpy", "ml-mixins", "torch", "MEDS_transforms>=0.1.0",
+    "hydra-core", "omegaconf", "meds_testing_helpers>=0.2.4"
 ]
 
 [tool.setuptools_scm]
 
 [project.optional-dependencies]
 dev = ["pre-commit<4"]
-tests = ["pytest", "pytest-cov[toml]", "meds_testing_helpers>=0.2.4"]
+tests = ["pytest-cov[toml]"]
 benchmarks = ["ml-mixins[memtrackable]>=0.2", "rootutils"]
 docs = [
   "mkdocs==1.6.1", "mkdocs-material==9.6.7", "mkdocstrings[python,shell]==0.28.2", "mkdocs-gen-files==0.5.0",
@@ -52,6 +52,9 @@ markers = [
   "parallelized: mark test as parallelized, requiring hydra-joblib-launcher",
 ]
 doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS"]
+
+[project.entry-points.pytest11]
+meds_torchdata = "meds_torchdata.pytest_plugin"
 
 [project.urls]
 Homepage = "https://github.com/mmcdermott/meds-torch-data"

@@ -1,4 +1,4 @@
-from meds_torchdata.pytorch_dataset import MEDSPytorchDataset
+from meds_torchdata import MEDSPytorchDataset, MEDSTorchBatch
 
 
 def test_dataset(sample_pytorch_dataset: MEDSPytorchDataset):
@@ -13,16 +13,11 @@ def test_dataset(sample_pytorch_dataset: MEDSPytorchDataset):
         samps.append(samp)
 
     full_batch = pyd.collate(samps)
-    assert full_batch is not None
-    assert "code" in full_batch, "The batch should have the code sequence."
-    assert "mask" in full_batch, "The batch should have the mask sequence."
-    assert "numeric_value_mask" in full_batch, "The batch should have the numeric value mask."
-    assert "time_delta_days" in full_batch, "The batch should have the time delta days."
-    assert "numeric_value" in full_batch, "The batch should have the numeric value."
+    assert isinstance(full_batch, MEDSTorchBatch)
 
     dataloader = pyd.get_dataloader(batch_size=32, num_workers=2)
     batch = next(iter(dataloader))
-    assert batch is not None
+    assert isinstance(batch, MEDSTorchBatch)
 
 
 def test_dataset_with_task(sample_pytorch_dataset_with_task: MEDSPytorchDataset):
@@ -53,15 +48,8 @@ def test_dataset_with_task(sample_pytorch_dataset_with_task: MEDSPytorchDataset)
         samps.append(samp)
 
     full_batch = pyd.collate(samps)
-    assert full_batch is not None
-    assert "code" in full_batch, "The batch should have the code sequence."
-    assert "mask" in full_batch, "The batch should have the mask sequence."
-    assert "numeric_value_mask" in full_batch, "The batch should have the numeric value mask."
-    assert "time_delta_days" in full_batch, "The batch should have the time delta days."
-    assert "numeric_value" in full_batch, "The batch should have the numeric value."
-    assert "boolean_value" in full_batch, "The batch should have the label in the labeled setting."
+    assert isinstance(full_batch, MEDSTorchBatch)
 
     dataloader = pyd.get_dataloader(batch_size=32, num_workers=2)
     batch = next(iter(dataloader))
-    assert batch is not None
-    assert "boolean_value" in batch, "The batch should have the label in the labeled setting."
+    assert isinstance(batch, MEDSTorchBatch)

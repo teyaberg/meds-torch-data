@@ -10,5 +10,6 @@ except PackageNotFoundError:  # pragma: no cover
 
 from .config import MEDSTorchDataConfig  # noqa: F401
 from .pytorch_dataset import MEDSPytorchDataset  # noqa: F401
+from .types import MEDSTorchBatch  # noqa: F401
 
-__all__ = ["MEDSPytorchDataset", "MEDSTorchDataConfig"]
+__all__ = ["MEDSPytorchDataset", "MEDSTorchDataConfig", "MEDSTorchBatch"]

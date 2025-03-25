@@ -178,8 +178,8 @@ Data processing parameters include:
 - `seq_sampling_strategy`: The strategy to use when sampling sub-sequences to return for input sequences
     longer than `max_seq_len`.
 - `static_inclusion_mode`: The mode to use when including static data in the output.
-- `do_flatten_tensors`: Whether to return sequences at the _measurement_ level (`True`) or the _event_ level
-    (`False`). Note that here, we use "_measurement_" to refer to a single row (observation) in the raw MEDS
+- `batch_mode`: Whether to return sequences at the _measurement_ level (`"SM"`) or the _event_ level
+    (`"SEM"`). Note that here, we use "_measurement_" to refer to a single row (observation) in the raw MEDS
     data, and "_event_" to refer to all measurements taken at a single time-point.
 
 Of these, `seq_sampling_strategy` and `static_inclusion_mode` are restricted, and must be of the
@@ -243,7 +243,7 @@ PosixPath('/tmp/tmp.../task_labels/boolean_value_task')
 
 ```
 
-Based on the `seq_sampling_strategy`, `do_flatten_tensors`, and `max_seq_len` parameters, the configuration
+Based on the `seq_sampling_strategy`, `batch_mode`, and `max_seq_len` parameters, the configuration
 object also has the
 [`process_dynamic_data`](https://meds-torch-data.readthedocs.io/en/latest/api/meds_torchdata/config/#meds_torchdata.config.MEDSTorchDataConfig.process_dynamic_data)
 helper function to slice the subject's dynamic data appropriately. This function is used internally, and you
@@ -597,25 +597,26 @@ time_delta_days
 ##### Batches, Collation, and Dataloaders
 
 We can also examine not just individual elements, but full batches, that we can access with the appropriate
-`collate` function via the built in `get_dataloader` method:
+`collate` function via the built in `get_dataloader` method. Here, we'll treat these outputs like
+dictionaries, but they actually return dataclass objects that have some additional properties we can use to
+access shapes and validate data. See the
+[API documentation](https://meds-torch-data.readthedocs.io/en/latest/api/meds_torchdata/types#meds_torchdata.types.MEDSTorchBatch)
+on the batch class for more information.
 
 ```python
 >>> print_element(next(iter(pyd.get_dataloader(batch_size=2))))
-time_delta_days (Tensor):
-tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
-        [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]])
 code (Tensor):
 tensor([[ 5,  3, 10, 11,  4],
         [ 5,  2, 10, 11,  4]])
-mask (Tensor):
-tensor([[True, True, True, True, True],
-        [True, True, True, True, True]])
 numeric_value (Tensor):
 tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],
         [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]])
 numeric_value_mask (Tensor):
 tensor([[False, False,  True,  True, False],
         [False, False,  True,  True, False]])
+time_delta_days (Tensor):
+tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
+        [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]])
 static_code (Tensor):
 tensor([[8, 9],
         [8, 9]])
@@ -626,21 +627,18 @@ static_numeric_value_mask (Tensor):
 tensor([[False,  True],
         [False,  True]])
 >>> print_element(next(iter(pyd_with_task.get_dataloader(batch_size=2))))
-time_delta_days (Tensor):
-tensor([[1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03, 0.0000e+00],
-        [0.0000e+00, 4.8264e-03, 0.0000e+00, 2.5544e-02, 0.0000e+00]])
 code (Tensor):
 tensor([[ 1, 10, 11, 10, 11],
         [11, 10, 11, 10, 11]])
-mask (Tensor):
-tensor([[True, True, True, True, True],
-        [True, True, True, True, True]])
 numeric_value (Tensor):
 tensor([[ 0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01, -1.1680e+00],
         [-1.2715e+00, -4.3755e-01, -1.1680e+00,  1.3220e-03, -1.3749e+00]])
 numeric_value_mask (Tensor):
 tensor([[False,  True,  True,  True,  True],
         [ True,  True,  True,  True,  True]])
+time_delta_days (Tensor):
+tensor([[1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03, 0.0000e+00],
+        [0.0000e+00, 4.8264e-03, 0.0000e+00, 2.5544e-02, 0.0000e+00]])
 static_code (Tensor):
 tensor([[7, 9],
         [7, 9]])
@@ -657,10 +655,10 @@ tensor([False,  True])
 
 Thus far, our examples have all worked with the default config object, which sets (among other things) the
 default output to be at a _measurement_ level, rather than an _event_ level, by virtue of setting
-`do_flatten_tensors` to `True`. Let's see what happens if we change that:
+`batch_mode` to `SM`. Let's see what happens if we change that:
 
 ```python
->>> pyd.config.do_flatten_tensors = False
+>>> pyd.config.batch_mode = "SEM"
 >>> print_element(pyd[0])
 static_code (list):
 [8, 9]
@@ -687,9 +685,6 @@ numeric_value
  [        nan -1.4474752  -0.34049404]
  [        nan  0.          0.        ]]
 >>> print_element(next(iter(pyd.get_dataloader(batch_size=2))))
-time_delta_days (Tensor):
-tensor([[0.0000e+00, 1.1766e+04, 9.7870e-02],
-        [0.0000e+00, 1.2367e+04, 4.6424e-02]])
 code (Tensor):
 tensor([[[ 5,  0,  0],
          [ 3, 10, 11],
@@ -698,9 +693,6 @@ tensor([[[ 5,  0,  0],
         [[ 5,  0,  0],
          [ 2, 10, 11],
          [ 4,  0,  0]]])
-mask (Tensor):
-tensor([[True, True, True],
-        [True, True, True]])
 numeric_value (Tensor):
 tensor([[[ 0.0000,  0.0000,  0.0000],
          [ 0.0000, -1.4475, -0.3405],
@@ -717,6 +709,12 @@ tensor([[[False,  True,  True],
         [[False,  True,  True],
          [False,  True,  True],
          [False,  True,  True]]])
+time_delta_days (Tensor):
+tensor([[0.0000e+00, 1.1766e+04, 9.7870e-02],
+        [0.0000e+00, 1.2367e+04, 4.6424e-02]])
+event_mask (Tensor):
+tensor([[True, True, True],
+        [True, True, True]])
 static_code (Tensor):
 tensor([[8, 9],
         [8, 9]])
@@ -726,11 +724,8 @@ tensor([[ 0.0000, -0.5438],
 static_numeric_value_mask (Tensor):
 tensor([[False,  True],
         [False,  True]])
->>> pyd_with_task.config.do_flatten_tensors = False
+>>> pyd_with_task.config.batch_mode = "SEM"
 >>> print_element(next(iter(pyd_with_task.get_dataloader(batch_size=2))))
-time_delta_days (Tensor):
-tensor([[0.0000e+00, 1.0727e+04, 4.8264e-03, 0.0000e+00],
-        [0.0000e+00, 1.0727e+04, 4.8264e-03, 2.5544e-02]])
 code (Tensor):
 tensor([[[ 5,  0,  0],
          [ 1, 10, 11],
@@ -741,9 +736,6 @@ tensor([[[ 5,  0,  0],
          [ 1, 10, 11],
          [10, 11,  0],
          [10, 11,  0]]])
-mask (Tensor):
-tensor([[ True,  True,  True, False],
-        [ True,  True,  True,  True]])
 numeric_value (Tensor):
 tensor([[[ 0.0000e+00,  0.0000e+00,  0.0000e+00],
          [ 0.0000e+00, -5.6974e-01, -1.2715e+00],
@@ -764,6 +756,12 @@ tensor([[[False,  True,  True],
          [False,  True,  True],
          [ True,  True,  True],
          [ True,  True,  True]]])
+time_delta_days (Tensor):
+tensor([[0.0000e+00, 1.0727e+04, 4.8264e-03, 0.0000e+00],
+        [0.0000e+00, 1.0727e+04, 4.8264e-03, 2.5544e-02]])
+event_mask (Tensor):
+tensor([[ True,  True,  True, False],
+        [ True,  True,  True,  True]])
 static_code (Tensor):
 tensor([[7, 9],
         [7, 9]])

@@ -220,7 +220,7 @@ class MEDSTorchBatch:
     Examples:
 
         The batch is effectively merely an ordered (by the definition in the class, not order of
-        specification) dictionary of tensors, and can be accessed as such:
+        specification), frozen dictionary of tensors, and can be accessed as such:
 
         >>> batch = MEDSTorchBatch(
         ...     time_delta_days=torch.tensor([[1.0, 2.1], [4.0, 0.2]]),
@@ -250,6 +250,10 @@ class MEDSTorchBatch:
         >>> print(list(batch.items()))
         [('code', tensor(...)), ('numeric_value', tensor(...)), ('numeric_value_mask', tensor(...)),
          ('time_delta_days', tensor(...)), ('event_mask', tensor(...)]
+        >>> batch["code"] = torch.tensor([[[1, 2, 3], [3, 0, 0]], [[5, 6, 0], [0, 0, 0]]])
+        Traceback (most recent call last):
+            ...
+        ValueError: MEDSTorchBatch is immutable!
 
         Though note that if you manually define something in a batch to be `None`, it will not be present in
         the keys/values/items:
@@ -502,6 +506,20 @@ class MEDSTorchBatch:
             ...
         ValueError: Static numeric value and mask must both be provided if static codes are!
 
+        You can't provide static numeric values without static codes:
+
+        >>> batch = MEDSTorchBatch(
+        ...     code=torch.tensor([[[1, 2], [3, 0]]]),
+        ...     numeric_value=torch.tensor([[[1., 0.], [0., 0.]]]),
+        ...     numeric_value_mask=torch.tensor([[[True, False], [False, False]]]),
+        ...     time_delta_days=torch.tensor([[1., 2.]]),
+        ...     event_mask=torch.tensor([[True, True]]),
+        ...     static_numeric_value=torch.tensor([1., 2.]),
+        ... )
+        Traceback (most recent call last):
+            ...
+        ValueError: Static numeric value and mask should not be provided without codes!
+
         Static data tensors must also be provided with consistent shapes, both internally and with respect to
         the other tensors in that the batch size must be conserved.
 
@@ -631,7 +649,7 @@ class MEDSTorchBatch:
                 self.__check_shape("time_delta_days", self._SM_shape)
                 self.__check_shape("numeric_value", self._SM_shape)
                 self.__check_shape("numeric_value_mask", self._SM_shape)
-            case _:
+            case _:  # pragma: no cover
                 raise ValueError(f"Invalid mode {self.mode}!")
 
         if self.has_static:
@@ -658,9 +676,7 @@ class MEDSTorchBatch:
 
     def __setitem__(self, key: str, value: torch.Tensor) -> None:
         """Set a tensor in the batch by key. Only valid if the key is a valid field."""
-        if key not in fields(self):
-            raise KeyError(f"Invalid key {key}!")
-        setattr(self, key, value)
+        raise ValueError("MEDSTorchBatch is immutable!")
 
     def keys(self) -> Generator[str, None, None]:
         """Get the keys of the batch."""

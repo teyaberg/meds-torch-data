@@ -130,6 +130,7 @@ class MEDSTorchBatch:
     dataset configuration. To clarify these shape options, we'll define the following terms. Most of these
     terms will also be realized as properties defined on this class for accessing shape variables over the
     batch for convenience.
+
       - `batch_size` is the number of subjects in the batch.
       - `max_events_per_subject` is the maximum number of events (unique time-points) for any subject in the
         batch.
@@ -142,6 +143,7 @@ class MEDSTorchBatch:
 
     There are a few shape "modes" that this batch can be in, depending on the configuration of the source
     dataset. These include:
+
       - `"SEM"`: In Subject-Event-Measurement (SEM) mode, the data is represented as a tensor of measurements
         per-event, per-subject, with missing values padded in all dimensions.
       - `"SM"`: In Subject-Measurement (SM) mode, the data is represented as a tensor of measurements

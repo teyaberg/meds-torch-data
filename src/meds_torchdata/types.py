@@ -94,8 +94,12 @@ class BatchMode(StrEnum):
     """An enumeration of the possible batch modes for the dataset.
 
     Attributes:
-        SEM: Subject-Event-Measurement mode, where events are separated by explicit tokens.
-        SM: Subject-Measurement mode, where events are concatenated without explicit separation.
+        SEM: Subject-Event-Measurement mode. In this mode, data are represented as 3D tensors of sequences of
+             measurements per event per subject, with tensor shapes
+             `[batch_size, max_events_per_subject, max_measurements_per_event]`.
+        SM: Subject-Measurement mode. In this mode, data are represented as 2D tensors of sequences of
+            measurements per subject, without explicit separation between measurements of different events,
+            with tensor shapes `[batch_size, max_measurements_per_subject]`.
     """
 
     SEM = "SEM"

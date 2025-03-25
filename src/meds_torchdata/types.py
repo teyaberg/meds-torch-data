@@ -177,52 +177,24 @@ class MEDSTorchBatch:
 
 
     Attributes:
-
-        Per-event:
-
         time_delta_days: Tensor of time deltas between sequence elements, in days.
         event_mask: Boolean tensor indicating whether a given event is present or not.
-
-        Per-measurement:
-
         code: Measurement code integral vocabulary indices. Equals `PAD_INDEX` when measurements are missing.
         numeric_value: Measurement numeric values. No guaranteed value for padding or missing numeric values.
         numeric_value_mask: Boolean mask indicating whether a given measurement has a numeric value. Values of
             this mask for padding measurements are undefined.
-
-        Static (all may be omitted):
-
         static_code: Static measurement code integral vocabulary indices. Equals `PAD_INDEX` when measurements
             are missing.
         static_numeric_value: Static measurement numeric values. No guaranteed value for padding or missing
             numeric values.
         static_numeric_value_mask: Boolean mask indicating whether a given static measurement has a numeric
             value.
-
-        Labels (may be omitted):
-
         boolean_value: Per-sample boolean labels.
-
-    Properties:
-
-        mode: The mode of the batch, either "SEM" or "SM".
-        has_static: Whether the batch has static data.
-        has_labels: Whether the batch has labels.
-        batch_size: The number of subjects in the batch.
-        max_events_per_subject: The maximum number of events for any subject in the batch. Will return `None`
-            if `mode` is "SM", as events are not explicitly separated and cannot be determined in this mode.
-        max_measurements_per_event: The maximum number of measurements for any event in the batch. Will return
-            `None` if `mode` is "SM", as events are not explicitly separated and cannot be determined in this
-            mode.
-        max_measurements_per_subject: The maximum number of measurements for any subject in the batch. Will
-            return `None` if `mode` is "SEM", as this value is not explicitly tracked in this mode.
-        max_static_measurements_per_subject: The maximum number of static measurements for any subject in the
-            batch.
 
     Examples:
 
-        The batch is effectively merely an ordered (by the definition in the class, not order of
-        specification), frozen dictionary of tensors, and can be accessed as such:
+    The batch is effectively merely an ordered (by the definition in the class, not order of
+    specification), frozen dictionary of tensors, and can be accessed as such:
 
         >>> batch = MEDSTorchBatch(
         ...     time_delta_days=torch.tensor([[1.0, 2.1], [4.0, 0.2]]),
@@ -257,8 +229,8 @@ class MEDSTorchBatch:
             ...
         ValueError: MEDSTorchBatch is immutable!
 
-        Though note that if you manually define something in a batch to be `None`, it will not be present in
-        the keys/values/items:
+    Though note that if you manually define something in a batch to be `None`, it will not be present in
+    the keys/values/items:
 
         >>> batch = MEDSTorchBatch(
         ...     time_delta_days=torch.tensor([[1.0, 2.1], [4.0, 0.2]]),
@@ -276,7 +248,7 @@ class MEDSTorchBatch:
         >>> print(list(batch.keys()))
         ['code', 'numeric_value', 'numeric_value_mask', 'time_delta_days', 'event_mask']
 
-        The batch can also be accessed by attribute, and has default values for allowed fields:
+    The batch can also be accessed by attribute, and has default values for allowed fields:
 
         >>> print(batch.event_mask)
         tensor([[ True,  True],
@@ -284,7 +256,7 @@ class MEDSTorchBatch:
         >>> print(batch.boolean_value)
         None
 
-        The batch has a number of properties that can be accessed for convenience:
+    The batch has a number of properties that can be accessed for convenience:
 
         >>> print(batch.mode)
         SEM
@@ -303,7 +275,7 @@ class MEDSTorchBatch:
         >>> print(batch.max_static_measurements_per_subject)
         None
 
-        The batch can also be constructed with static data and labels, and in SM mode instead of SEM mode:
+    The batch can also be constructed with static data and labels, and in SM mode instead of SEM mode:
 
         >>> batch = MEDSTorchBatch(
         ...     code=torch.tensor([[1, 2, 3, 3], [5, 6, 0, 0]]),
@@ -339,9 +311,9 @@ class MEDSTorchBatch:
         >>> print(batch["boolean_value"])
         tensor([ True, False])
 
-        The batch will automatically validate tensor shapes, types, and presence vs. omission. In particular,
-        the code, numeric_value, numeric_value_mask, and time_delta_days tensors are required, and must be in
-        their correct types:
+    The batch will automatically validate tensor shapes, types, and presence vs. omission. In particular,
+    the code, numeric_value, numeric_value_mask, and time_delta_days tensors are required, and must be in
+    their correct types:
 
         >>> batch = MEDSTorchBatch()
         Traceback (most recent call last):
@@ -372,8 +344,8 @@ class MEDSTorchBatch:
             ...
         ValueError: Required tensor time_delta_days is missing!
 
-        In addition, the shapes of the tensors must be consistent. To begin with, the code tensor's shape must
-        correctly align with one of the allowed modes (SEM or SM):
+    In addition, the shapes of the tensors must be consistent. To begin with, the code tensor's shape must
+    correctly align with one of the allowed modes (SEM or SM):
 
         >>> batch = MEDSTorchBatch(
         ...     code=torch.tensor([1]),
@@ -385,7 +357,7 @@ class MEDSTorchBatch:
             ...
         ValueError: Code shape must have length either 2 (SM mode) or 3 (SEM mode); got shape torch.Size([1])!
 
-        If the code shape is in SM mode, the remaining tensors must have the correct shapes for that mode:
+    If the code shape is in SM mode, the remaining tensors must have the correct shapes for that mode:
 
         >>> batch = MEDSTorchBatch(
         ...     code=torch.tensor([[1]]),
@@ -421,7 +393,7 @@ class MEDSTorchBatch:
         ...     time_delta_days=torch.tensor([[1.]]),
         ... )
 
-        You also can't provide an event mask in SM mode:
+    You also can't provide an event mask in SM mode:
 
         >>> batch = MEDSTorchBatch(
         ...     code=torch.tensor([[1]]),
@@ -434,8 +406,8 @@ class MEDSTorchBatch:
             ...
         ValueError: Event mask should not be provided in SM mode!
 
-        If the code shape is in SEM mode, the remaining tensors must similarly have the correct shapes for
-        that mode, and you _must_ provide an event mask:
+    If the code shape is in SEM mode, the remaining tensors must similarly have the correct shapes for
+    that mode, and you _must_ provide an event mask:
 
         >>> batch = MEDSTorchBatch(
         ...     code=torch.tensor([[[1, 2], [3, 0]]]),
@@ -494,7 +466,7 @@ class MEDSTorchBatch:
         ...     event_mask=torch.tensor([[True, True]]),
         ... )
 
-        If you provide static data, you must provide both the static code and numeric value tensors:
+    If you provide static data, you must provide both the static code and numeric value tensors:
 
         >>> batch = MEDSTorchBatch(
         ...     code=torch.tensor([[[1, 2], [3, 0]]]),
@@ -508,7 +480,7 @@ class MEDSTorchBatch:
             ...
         ValueError: Static numeric value and mask must both be provided if static codes are!
 
-        You can't provide static numeric values without static codes:
+    You can't provide static numeric values without static codes:
 
         >>> batch = MEDSTorchBatch(
         ...     code=torch.tensor([[[1, 2], [3, 0]]]),
@@ -522,8 +494,8 @@ class MEDSTorchBatch:
             ...
         ValueError: Static numeric value and mask should not be provided without codes!
 
-        Static data tensors must also be provided with consistent shapes, both internally and with respect to
-        the other tensors in that the batch size must be conserved.
+    Static data tensors must also be provided with consistent shapes, both internally and with respect to
+    the other tensors in that the batch size must be conserved.
 
         >>> batch = MEDSTorchBatch(
         ...     code=torch.tensor([[[1, 2], [3, 0]]]),
@@ -576,7 +548,7 @@ class MEDSTorchBatch:
         ...     static_numeric_value_mask=torch.tensor([[True, False]]),
         ... )
 
-        Similarly to static data, if labels are provided, they must be of shape (batch_size,):
+    Similarly to static data, if labels are provided, they must be of shape (batch_size,):
 
         >>> batch = MEDSTorchBatch(
         ...     code=torch.tensor([[[1, 2], [3, 0]]]),

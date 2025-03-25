@@ -50,7 +50,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
     Examples:
 
-        If you load the dataset from real data, things work fine.
+    If you load the dataset from real data, things work fine.
 
         >>> cfg = MEDSTorchDataConfig(tensorized_cohort_dir=tensorized_MEDS_dataset, max_seq_len=5)
         >>> pyd = MEDSPytorchDataset(cfg, split="train")
@@ -59,7 +59,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         >>> pyd.index
         [(68729, 3), (814703, 3), (239684, 6), (1195293, 8)]
 
-        If you pass in a non-existent split, you'll get an error as it won't be able to find the schema files:
+    If you pass in a non-existent split, you'll get an error as it won't be able to find the schema files:
 
         >>> pyd = MEDSPytorchDataset(cfg, split="nonexistent")
         Traceback (most recent call last):

@@ -7,151 +7,14 @@ enumeration objects for categorical options and a general DataClass configuratio
 import logging
 from collections.abc import Generator
 from dataclasses import dataclass
-from enum import StrEnum
 from pathlib import Path
 
 import numpy as np
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
+from .types import BatchMode, StaticInclusionMode, SubsequenceSamplingStrategy
+
 logger = logging.getLogger(__name__)
-
-
-def resolve_rng(rng: np.random.Generator | int | None) -> np.random.Generator:
-    """Resolve a random number generator from a seed or generator.
-
-    Args:
-        rng: Random number generator for random sampling. If None, a new generator is created. If an
-            integer, a new generator is created with that seed.
-
-    Returns:
-        A random number generator.
-
-    Raises:
-        ValueError: If the random number generator is not a valid type.
-
-    Examples:
-        >>> rng = resolve_rng(None)
-        >>> isinstance(rng, np.random.Generator)
-        True
-
-        You can pass a seed, at which point it is deterministic.
-
-        >>> rng = resolve_rng(1)
-        >>> isinstance(rng, np.random.Generator)
-        True
-        >>> rng.random()
-        0.5118216247002567
-        >>> rng.random()
-        0.9504636963259353
-        >>> resolve_rng(1).random()
-        0.5118216247002567
-        >>> resolve_rng(2).random()
-        0.2616121342493164
-
-        You can also pass a generator directly.
-
-        >>> resolve_rng(np.random.default_rng(1)).random()
-        0.5118216247002567
-
-        Passing an invalid type raises an error.
-
-        >>> resolve_rng("foo")
-        Traceback (most recent call last):
-            ...
-        ValueError: Invalid random number generator: foo!
-    """
-
-    match rng:
-        case None:
-            return np.random.default_rng()
-        case int():
-            return np.random.default_rng(rng)
-        case np.random.Generator():
-            return rng
-        case _:
-            raise ValueError(f"Invalid random number generator: {rng}!")
-
-
-class SubsequenceSamplingStrategy(StrEnum):
-    """An enumeration of the possible subsequence sampling strategies for the dataset.
-
-    Attributes:
-        RANDOM: Randomly sample a subsequence from the full sequence.
-        TO_END: Sample a subsequence from the end of the full sequence.
-            Note this starts at the last element and moves back.
-        FROM_START: Sample a subsequence from the start of the full sequence.
-
-    Methods:
-        subsample_st_offset: Subsample starting offset based on maximum sequence length and sampling strategy.
-            This method can be used on instances
-            (e.g., SubsequenceSamplingStrategy.RANDOM.subsample_st_offset) but is most often used as a static
-            class level method for maximal clarity.
-    """
-
-    RANDOM = "random"
-    TO_END = "to_end"
-    FROM_START = "from_start"
-
-    def subsample_st_offset(
-        strategy,
-        seq_len: int,
-        max_seq_len: int,
-        rng: Generator | int | None = None,
-    ) -> int | None:
-        """Subsample starting offset based on maximum sequence length and sampling strategy.
-
-        Args:
-            strategy: Strategy for selecting subsequence (RANDOM, TO_END, FROM_START)
-            seq_len: Length of the sequence
-            max_seq_len: Maximum allowed sequence length
-            rng: Random number generator for random sampling. If None, a new generator is created. If an
-                integer, a new generator is created with that seed.
-
-        Returns:
-            The (integral) start offset within the sequence based on the sampling strategy, or `None` if no
-            subsampling is required.
-
-        Examples:
-            >>> SubsequenceSamplingStrategy.subsample_st_offset("from_start", 10, 5)
-            0
-            >>> SubsequenceSamplingStrategy.subsample_st_offset(SubsequenceSamplingStrategy.TO_END, 10, 5)
-            5
-            >>> SubsequenceSamplingStrategy.subsample_st_offset("random", 10, 5, rng=np.random.default_rng(1))
-            2
-            >>> SubsequenceSamplingStrategy.subsample_st_offset("random", 10, 5, rng=1)
-            2
-            >>> SubsequenceSamplingStrategy.RANDOM.subsample_st_offset(10, 10) is None
-            True
-            >>> SubsequenceSamplingStrategy.subsample_st_offset("foo", 10, 5)
-            Traceback (most recent call last):
-                ...
-            ValueError: Invalid subsequence sampling strategy foo!
-        """
-
-        if seq_len <= max_seq_len:
-            return None
-
-        match strategy:
-            case SubsequenceSamplingStrategy.RANDOM:
-                return resolve_rng(rng).choice(seq_len - max_seq_len)
-            case SubsequenceSamplingStrategy.TO_END:
-                return seq_len - max_seq_len
-            case SubsequenceSamplingStrategy.FROM_START:
-                return 0
-            case _:
-                raise ValueError(f"Invalid subsequence sampling strategy {strategy}!")
-
-
-class StaticInclusionMode(StrEnum):
-    """An enumeration of the possible vehicles to include static measurements.
-
-    Attributes:
-        INCLUDE: Include the static measurements as a separate output key in each batch.
-        OMIT: Omit the static measurements entirely.
-    """
-
-    INCLUDE = "include"
-    OMIT = "omit"
 
 
 @dataclass
@@ -255,7 +118,7 @@ class MEDSTorchDataConfig:
     task_labels_dir: str | None = None
 
     # Output Shape & Masking
-    do_flatten_tensors: bool = True
+    batch_mode: BatchMode = BatchMode.SM
 
     def __post_init__(self):
         self.tensorized_cohort_dir = Path(self.tensorized_cohort_dir)
@@ -387,7 +250,7 @@ class MEDSTorchDataConfig:
             If the config says to sample until the end, we'll just grab the last three elements.
 
             >>> cfg = MEDSTorchDataConfig(
-            ...     ".", max_seq_len=3, seq_sampling_strategy="to_end", do_flatten_tensors=False
+            ...     ".", max_seq_len=3, seq_sampling_strategy="to_end", batch_mode="SEM"
             ... )
             >>> pprint_dense(cfg.process_dynamic_data(data).to_dense())
             time_delta
@@ -420,7 +283,7 @@ class MEDSTorchDataConfig:
             If we sample from the start, we'll just grab the first three elements.
 
             >>> cfg = MEDSTorchDataConfig(
-            ...     ".", max_seq_len=3, seq_sampling_strategy="from_start", do_flatten_tensors=False
+            ...     ".", max_seq_len=3, seq_sampling_strategy="from_start", batch_mode="SEM"
             ... )
             >>> pprint_dense(cfg.process_dynamic_data(data).to_dense())
             time_delta
@@ -471,7 +334,7 @@ class MEDSTorchDataConfig:
             [0 6 7]
         """
 
-        if self.do_flatten_tensors:
+        if self.batch_mode == BatchMode.SM:
             data = data.flatten()
 
         seq_len = len(data)

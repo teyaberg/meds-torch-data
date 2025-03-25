@@ -1,6 +1,5 @@
 import logging
 from functools import cached_property
-from typing import NamedTuple
 
 import numpy as np
 import polars as pl
@@ -9,13 +8,9 @@ from meds import prediction_time_field, subject_id_field, time_field
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
 from .config import MEDSTorchDataConfig, StaticInclusionMode
+from .types import MEDSTorchBatch, StaticData
 
 logger = logging.getLogger(__name__)
-
-
-class StaticData(NamedTuple):
-    code: list[int]
-    numeric_value: list[float | None]
 
 
 class MEDSPytorchDataset(torch.utils.data.Dataset):
@@ -310,14 +305,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             idx (int): The index of the data point to retrieve.
 
         Returns:
-            dict: A dictionary containing the data for the specified index. The structure typically includes:
-                - code: List of categorical metadata elements.
-                - mask: Mask of valid elements in the sequence, False means it is a padded element.
-                - numeric_value: List of dynamic numeric values.
-                - numeric_value_mask: Mask of numeric values (False means no numeric value was recorded)
-                - time_delta_days: List of dynamic time deltas between observations.
-                - static_code (Optional): List of static MEDS codes.
-                - static_numeric_value (Optional): List of static MEDS numeric values.
+            A dictionary containing the static code, static numeric value, dynamic data, and task label (if
+            present) for the specified subject.
         """
         return self._seeded_getitem(idx)
 
@@ -472,7 +461,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         return subject_dynamic_data, StaticData(static_code, static_numeric_value)
 
-    def collate(self, batch: list[dict]) -> dict[str, torch.Tensor]:
+    def collate(self, batch: list[dict]) -> MEDSTorchBatch:
         """Combines a batch of data points into a single, tensorized batch.
 
         The collated output is a fully tensorized and padded dictionary, ready for input into an
@@ -483,68 +472,110 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 returned by the __getitem__ method.
 
         Returns:
-            dict: A dictionary containing the collated batch data.
+            MEDSTorchBatch: A simple, dictionary-like object containing the collated batch data. See the
+            [method documentation](../types.py) for more information.
 
         Examples:
             >>> batch = [sample_pytorch_dataset[0], sample_pytorch_dataset[1]]
             >>> sample_pytorch_dataset.collate(batch)
-            {'time_delta_days': tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
-                                        [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]]),
-             'code': tensor([[ 5,  3, 10, 11,  4],
-                             [ 5,  2, 10, 11,  4]]),
-             'mask': tensor([[True, True, True, True, True],
-                             [True, True, True, True, True]]),
-             'numeric_value': tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],
-                                      [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]]),
-             'numeric_value_mask': tensor([[False, False,  True,  True, False],
-                                           [False, False,  True,  True, False]]),
-             'static_code': tensor([[8, 9],
-                                    [8, 9]]),
-             'static_numeric_value': tensor([[ 0.0000, -0.5438],
-                                             [ 0.0000, -1.1012]]),
-             'static_numeric_value_mask': tensor([[False,  True],
-                                                  [False,  True]])}
+            MEDSTorchBatch(code=tensor([[ 5,  3, 10, 11,  4],
+                                        [ 5,  2, 10, 11,  4]]),
+                           numeric_value=tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],
+                                                 [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]]),
+                           numeric_value_mask=tensor([[False, False,  True,  True, False],
+                                                      [False, False,  True,  True, False]]),
+                           time_delta_days=tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00,
+                                                    9.7870e-02],
+                                                   [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00,
+                                                    4.6424e-02]]),
+                           event_mask=None,
+                           static_code=tensor([[8, 9],
+                                               [8, 9]]),
+                           static_numeric_value=tensor([[ 0.0000, -0.5438],
+                                                        [ 0.0000, -1.1012]]),
+                           static_numeric_value_mask=tensor([[False,  True],
+                                                             [False,  True]]),
+                           boolean_value=None)
             >>> batch = [sample_pytorch_dataset_with_task[0], sample_pytorch_dataset_with_task[1]]
             >>> sample_pytorch_dataset_with_task.collate(batch)
-            {'time_delta_days': tensor([[0.0000e+00, 1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
-                                         0.0000e+00, 0.0000e+00, 0.0000e+00],
-                                        [0.0000e+00, 1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
-                                         0.0000e+00, 2.5544e-02, 0.0000e+00]]),
-             'code': tensor([[ 5,  1, 10, 11, 10, 11,  0,  0],
-                             [ 5,  1, 10, 11, 10, 11, 10, 11]]),
-             'mask': tensor([[ True,  True,  True,  True,  True,  True, False, False],
-                             [ True,  True,  True,  True,  True,  True,  True,  True]]),
-             'numeric_value': tensor([[ 0.0000e+00,  0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01,
-                                       -1.1680e+00,  0.0000e+00,  0.0000e+00],
-                                      [ 0.0000e+00,  0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01,
-                                        -1.1680e+00,  1.3220e-03, -1.3749e+00]]),
-             'numeric_value_mask': tensor([[False, False,  True,  True,  True,  True,  True,  True],
-                                           [False, False,  True,  True,  True,  True,  True,  True]]),
-             'static_code': tensor([[7, 9],
-                                    [7, 9]]),
-             'static_numeric_value': tensor([[0.0000, 1.5770],
-                                             [0.0000, 1.5770]]),
-             'static_numeric_value_mask': tensor([[False,  True],
-                                                  [False,  True]]),
-             'boolean_value': tensor([False,  True])}
+            MEDSTorchBatch(code=tensor([[ 5,  1, 10, 11, 10, 11,  0,  0],
+                                        [ 5,  1, 10, 11, 10, 11, 10, 11]]),
+                           numeric_value=tensor([[ 0.0000e+00,  0.0000e+00, -5.6974e-01, -1.2715e+00,
+                                                   -4.3755e-01, -1.1680e+00,  0.0000e+00,  0.0000e+00],
+                                                 [ 0.0000e+00,  0.0000e+00, -5.6974e-01, -1.2715e+00,
+                                                   -4.3755e-01, -1.1680e+00,  1.3220e-03, -1.3749e+00]]),
+                           numeric_value_mask=tensor([[False, False,  True,  True,
+                                                        True,  True,  True,  True],
+                                                      [False, False,  True,  True,
+                                                        True,  True,  True,  True]]),
+                           time_delta_days=tensor([[0.0000e+00, 1.0727e+04, 0.0000e+00, 0.0000e+00,
+                                                    4.8264e-03, 0.0000e+00, 0.0000e+00, 0.0000e+00],
+                                                   [0.0000e+00, 1.0727e+04, 0.0000e+00, 0.0000e+00,
+                                                    4.8264e-03, 0.0000e+00, 2.5544e-02, 0.0000e+00]]),
+                           event_mask=None,
+                           static_code=tensor([[7, 9],
+                                               [7, 9]]),
+                           static_numeric_value=tensor([[0.0000, 1.5770],
+                                                        [0.0000, 1.5770]]),
+                           static_numeric_value_mask=tensor([[False,  True],
+                                                             [False,  True]]),
+                           boolean_value=tensor([False,  True]))
 
             Static data can also be omitted if set in the config.
 
             >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.OMIT
             >>> batch = [sample_pytorch_dataset[0], sample_pytorch_dataset[1]]
             >>> sample_pytorch_dataset.collate(batch)
-            {'time_delta_days': tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
-                                        [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]]),
-             'code': tensor([[ 5,  3, 10, 11,  4],
-                             [ 5,  2, 10, 11,  4]]),
-             'mask': tensor([[True, True, True, True, True],
-                             [True, True, True, True, True]]),
-             'numeric_value': tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],
-                                      [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]]),
-             'numeric_value_mask': tensor([[False, False,  True,  True, False],
-                                           [False, False,  True,  True, False]])}
+            MEDSTorchBatch(code=tensor([[ 5,  3, 10, 11,  4],
+                                        [ 5,  2, 10, 11,  4]]),
+                           numeric_value=tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],
+                                                 [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]]),
+                           numeric_value_mask=tensor([[False, False,  True,  True, False],
+                                                      [False, False,  True,  True, False]]),
+                           time_delta_days=tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00,
+                                                    0.0000e+00, 9.7870e-02],
+                                                   [0.0000e+00, 1.2367e+04, 0.0000e+00,
+                                                    0.0000e+00, 4.6424e-02]]),
+                           event_mask=None,
+                           static_code=None,
+                           static_numeric_value=None,
+                           static_numeric_value_mask=None,
+                           boolean_value=None)
 
-            >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.INCLUDE
+            If the batch mode is SEM, the event mask will also be included and the output shape will differ:
+
+            >>> sample_pytorch_dataset.config.batch_mode = "SEM"
+            >>> batch = [sample_pytorch_dataset[0], sample_pytorch_dataset[1]]
+            >>> sample_pytorch_dataset.collate(batch)
+            MEDSTorchBatch(code=tensor([[[ 5,  0,  0],
+                                         [ 3, 10, 11],
+                                         [ 4,  0,  0]],
+            <BLANKLINE>
+                                        [[ 5,  0,  0],
+                                         [ 2, 10, 11],
+                                         [ 4,  0,  0]]]),
+                           numeric_value=tensor([[[ 0.0000,  0.0000,  0.0000],
+                                                  [ 0.0000, -1.4475, -0.3405],
+                                                  [ 0.0000,  0.0000,  0.0000]],
+            <BLANKLINE>
+                                                 [[ 0.0000,  0.0000,  0.0000],
+                                                  [ 0.0000,  3.0047,  0.8491],
+                                                  [ 0.0000,  0.0000,  0.0000]]]),
+                           numeric_value_mask=tensor([[[False,  True,  True],
+                                                       [False,  True,  True],
+                                                       [False,  True,  True]],
+            <BLANKLINE>
+                                                      [[False,  True,  True],
+                                                       [False,  True,  True],
+                                                       [False,  True,  True]]]),
+                           time_delta_days=tensor([[0.0000e+00, 1.1766e+04, 9.7870e-02],
+                                                   [0.0000e+00, 1.2367e+04, 4.6424e-02]]),
+                           event_mask=tensor([[True, True, True],
+                                              [True, True, True]]),
+                           static_code=None,
+                           static_numeric_value=None,
+                           static_numeric_value_mask=None,
+                           boolean_value=None)
         """
 
         data = JointNestedRaggedTensorDict.vstack([item["dynamic"] for item in batch]).to_dense()
@@ -553,7 +584,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         out = {}
         out["time_delta_days"] = torch.nan_to_num(tensorized.pop("time_delta_days"), nan=0).float()
         out["code"] = tensorized.pop("code").long()
-        out["mask"] = tensorized.pop("dim1/mask")
+        if self.config.batch_mode == "SEM":
+            out["event_mask"] = tensorized.pop("dim1/mask")
         out["numeric_value"] = torch.nan_to_num(tensorized["numeric_value"], nan=0).float()
         out["numeric_value_mask"] = ~torch.isnan(tensorized.pop("numeric_value"))
 
@@ -577,7 +609,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         if self.has_task:
             out[self.LABEL_COL] = torch.Tensor([item[self.LABEL_COL] for item in batch]).bool()
 
-        return out
+        return MEDSTorchBatch(**out)
 
     def get_dataloader(self, **kwargs) -> torch.utils.data.DataLoader:
         """Constructs a PyTorch DataLoader for this dataset using the dataset's custom collate function.
@@ -589,23 +621,27 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             torch.utils.data.DataLoader: A DataLoader object for this dataset.
 
         Examples:
+            >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.INCLUDE
+            >>> sample_pytorch_dataset.config.batch_mode = "SM"
             >>> DL = sample_pytorch_dataset.get_dataloader(batch_size=2, shuffle=False)
             >>> next(iter(DL))
-            {'time_delta_days': tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
-                                        [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]]),
-             'code': tensor([[ 5,  3, 10, 11,  4],
-                             [ 5,  2, 10, 11,  4]]),
-             'mask': tensor([[True, True, True, True, True],
-                             [True, True, True, True, True]]),
-             'numeric_value': tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],
-                                      [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]]),
-             'numeric_value_mask': tensor([[False, False,  True,  True, False],
-                                           [False, False,  True,  True, False]]),
-             'static_code': tensor([[8, 9],
-                                    [8, 9]]),
-             'static_numeric_value': tensor([[ 0.0000, -0.5438],
-                                             [ 0.0000, -1.1012]]),
-             'static_numeric_value_mask': tensor([[False,  True],
-                                                  [False,  True]])}
+            MEDSTorchBatch(code=tensor([[ 5,  3, 10, 11,  4],
+                                        [ 5,  2, 10, 11,  4]]),
+                           numeric_value=tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],
+                                                 [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]]),
+                           numeric_value_mask=tensor([[False, False,  True,  True, False],
+                                                      [False, False,  True,  True, False]]),
+                           time_delta_days=tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00,
+                                                    0.0000e+00, 9.7870e-02],
+                                                   [0.0000e+00, 1.2367e+04, 0.0000e+00,
+                                                    0.0000e+00, 4.6424e-02]]),
+                           event_mask=None,
+                           static_code=tensor([[8, 9],
+                                               [8, 9]]),
+                           static_numeric_value=tensor([[ 0.0000, -0.5438],
+                                                        [ 0.0000, -1.1012]]),
+                           static_numeric_value_mask=tensor([[False,  True],
+                                                             [False,  True]]),
+                           boolean_value=None)
         """
         return torch.utils.data.DataLoader(self, collate_fn=self.collate, **kwargs)

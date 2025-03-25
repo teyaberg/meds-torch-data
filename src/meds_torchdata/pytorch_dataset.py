@@ -544,7 +544,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
             If the batch mode is SEM, the event mask will also be included and the output shape will differ:
 
-            >>> sample_pytorch_dataset.config.batch_mode = BatchMode.SEM
+            >>> sample_pytorch_dataset.config.batch_mode = "SEM"
             >>> batch = [sample_pytorch_dataset[0], sample_pytorch_dataset[1]]
             >>> sample_pytorch_dataset.collate(batch)
             MEDSTorchBatch(code=tensor([[[ 5,  0,  0],
@@ -622,7 +622,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         Examples:
             >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.INCLUDE
-            >>> sample_pytorch_dataset.config.batch_mode = BatchMode.SM
+            >>> sample_pytorch_dataset.config.batch_mode = "SM"
             >>> DL = sample_pytorch_dataset.get_dataloader(batch_size=2, shuffle=False)
             >>> next(iter(DL))
             MEDSTorchBatch(code=tensor([[ 5,  3, 10, 11,  4],

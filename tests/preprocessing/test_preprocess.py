@@ -70,8 +70,8 @@ def test_preprocess_error_case():
 
         command = [
             str(PREPROCESS_SCRIPT),
-            f"MEDS_dataset_dir={str(non_existent_dir.resolve())}",
-            f"output_dir={str(cohort_dir.resolve())}",
+            f"MEDS_dataset_dir={non_existent_dir.resolve()!s}",
+            f"output_dir={cohort_dir.resolve()!s}",
         ]
 
         out = subprocess.run(" ".join(command), shell=True, check=False, capture_output=True)

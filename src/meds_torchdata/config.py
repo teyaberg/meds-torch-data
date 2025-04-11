@@ -125,7 +125,7 @@ class MEDSTorchDataConfig:
         if not self.tensorized_cohort_dir.is_dir():
             raise FileNotFoundError(
                 "tensorized_cohort_dir must be a valid directory. "
-                f"Got {str(self.tensorized_cohort_dir.resolve())}"
+                f"Got {self.tensorized_cohort_dir.resolve()!s}"
             )
 
         match self.static_inclusion_mode:
@@ -149,7 +149,7 @@ class MEDSTorchDataConfig:
             if not self.task_labels_dir.is_dir():
                 raise FileNotFoundError(
                     "If specified, task_labels_dir must be a valid directory. "
-                    f"Got {str(self.task_labels_dir.resolve())}"
+                    f"Got {self.task_labels_dir.resolve()!s}"
                 )
             if self.seq_sampling_strategy != SubsequenceSamplingStrategy.TO_END:
                 raise ValueError(

@@ -17,8 +17,8 @@ def tensorized_MEDS_dataset(simple_static_MEDS: Path) -> Path:
 
         command = [
             "MTD_preprocess",
-            f"MEDS_dataset_dir={str(simple_static_MEDS)}",
-            f"output_dir={str(cohort_dir)}",
+            f"MEDS_dataset_dir={simple_static_MEDS!s}",
+            f"output_dir={cohort_dir!s}",
         ]
 
         out = subprocess.run(" ".join(command), shell=True, check=False, capture_output=True)

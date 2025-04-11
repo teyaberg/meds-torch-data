@@ -1,22 +1,23 @@
 import json
 import sys
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pytest
+import rootutils
 import torch
 from mixins import MemTrackableMixin, TimeableMixin, add_mixin
 
 from meds_torchdata.pytorch_dataset import MEDSPytorchDataset, MEDSTorchDataConfig
 
-import rootutils
-
 root = rootutils.setup_root(__file__, dotenv=True, pythonpath=True, cwd=False)
 
 OUTPUT_DIR = root / "benchmark" / "outputs"
+
+CNT_PREFIX = "Count: "
 
 
 def tensor_size(a: torch.Tensor) -> int:
@@ -24,7 +25,6 @@ def tensor_size(a: torch.Tensor) -> int:
 
 
 def to_val(k: str, v: Any) -> dict:
-    CNT_PREFIX = "Count: "
     match v:
         case list() as samples:
             vs = [to_val(k, val) for val in samples]
@@ -98,12 +98,12 @@ def benchmark(dataset, batch_size: int, num_epochs: int = 1) -> tuple[dict[str, 
     epoch_durations = []
 
     with dataset._track_memory_as("benchmark"):
-        for epoch in range(num_epochs):
-            epoch_start = datetime.now()
-            for B in dataloader:
-                for k, v in B.items():
+        for _epoch in range(num_epochs):
+            epoch_start = datetime.now(tz=UTC)
+            for batch in dataloader:
+                for k, v in batch.items():
                     sizes[k].append(tensor_size(v))
-            epoch_durations.append(datetime.now() - epoch_start)
+            epoch_durations.append(datetime.now(tz=UTC) - epoch_start)
 
     return sizes, epoch_durations
 
@@ -114,11 +114,11 @@ def benchmark(dataset, batch_size: int, num_epochs: int = 1) -> tuple[dict[str, 
 def test_profile(benchmark_dataset: Path, batch_size: int, max_seq_len: int, num_epochs: int):
     methods_to_track = ["__getitem__", "collate"]
 
-    TrackableDataset = add_mixin(
+    TrackableDataset: type[MEDSPytorchDataset] = add_mixin(  # noqa: N806
         add_mixin(
             MEDSPytorchDataset,
             TimeableMixin,
-            {m: TimeableMixin.TimeAs for m in methods_to_track},
+            dict.fromkeys(methods_to_track, TimeableMixin.TimeAs),
         ),
         MemTrackableMixin,
         {},

@@ -136,7 +136,7 @@ held_out/0: |-2
 )
 
 
-def assert_df_equal(want: pl.DataFrame, got: pl.DataFrame, msg: str = None, **kwargs):
+def assert_df_equal(want: pl.DataFrame, got: pl.DataFrame, msg: str | None = None, **kwargs):
     try:
         update_exprs = {}
         for k, v in want.schema.items():
@@ -191,7 +191,7 @@ def check_NRT_output(
         f"{msg}:\nWanted:\n{list(want_tensors.keys())}\nGot:\n{list(got_tensors.keys())}"
     )
 
-    for k in want_tensors.keys():
+    for k in want_tensors:
         want_v = want_tensors[k]
         got_v = got_tensors[k]
 
@@ -205,7 +205,7 @@ def check_NRT_output(
                 f"Wanted:\n{len(want_v)}\n"
                 f"Got:\n{len(got_v)}"
             )
-            for i, (want_i, got_i) in enumerate(zip(want_v, got_v)):
+            for i, (want_i, got_i) in enumerate(zip(want_v, got_v, strict=False)):
                 assert np.array_equal(want_i, got_i, equal_nan=True), (
                     f"Expected tensor {k}[{i}] of the NRT at {output_fp} to be equal to the target.\n"
                     f"Wanted:\n{want_i}\n"
@@ -316,7 +316,7 @@ def run_command(
 
         command_parts.extend(
             [
-                f"--config-path={str(conf_path.parent.resolve())}",
+                f"--config-path={conf_path.parent.resolve()!s}",
                 "--config-name=config",
                 "'hydra.searchpath=[pkg://MEDS_transforms.configs]'",
             ]
@@ -558,9 +558,9 @@ def multi_stage_tester(
 
         match do_pass_stage_name:
             case True:
-                do_pass_stage_name = {stage_name: True for stage_name in stage_names}
+                do_pass_stage_name = dict.fromkeys(stage_names, True)
             case False:
-                do_pass_stage_name = {stage_name: False for stage_name in stage_names}
+                do_pass_stage_name = dict.fromkeys(stage_names, False)
             case dict():
                 pass
             case _:
@@ -577,7 +577,7 @@ def multi_stage_tester(
 
         script_outputs = {}
         n_stages = len(stage_names)
-        for i, (stage, script) in enumerate(zip(stage_names, scripts)):
+        for i, (stage, script) in enumerate(zip(stage_names, scripts, strict=False)):
             script_outputs[stage] = run_command(
                 script=script,
                 hydra_kwargs=pipeline_config_kwargs,

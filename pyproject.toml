@@ -59,3 +59,31 @@ meds_torchdata = "meds_torchdata.pytest_plugin"
 [project.urls]
 Homepage = "https://github.com/mmcdermott/meds-torch-data"
 Issues = "https://github.com/mmcdermott/meds-torch-data/issues"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 110
+extend-exclude = ["docs/index.md"]
+
+# Enable linters
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "DTZ", # flake8-datetimez
+    "RUF", # Ruff-specific rules
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+    "N",   # pep8-naming
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Unused imports in __init__ files
+"test_*" = ["DTZ001"]  # Ignore datetimez in test files
+
+[tool.ruff.lint.pep8-naming]
+extend-ignore-names = ["*MEDS*", "*NRT*", "_SE_*", "_SEM_*", "_SM_*", "D"]

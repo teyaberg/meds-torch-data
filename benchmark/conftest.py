@@ -34,7 +34,7 @@ def benchmark_dataset(request, generated_sample_MEDS: Path) -> Path:
     with _test_dir(request) as cohort_dir:
         command = [
             "MTD_preprocess",
-            f"MEDS_dataset_dir={str(generated_sample_MEDS)}",
+            f"MEDS_dataset_dir={generated_sample_MEDS!s}",
             f"output_dir={cohort_dir}",
             "do_reshard=True",
         ]

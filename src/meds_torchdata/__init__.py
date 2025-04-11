@@ -8,8 +8,8 @@ except PackageNotFoundError:  # pragma: no cover
     # package is not installed
     __version__ = "unknown"
 
-from .config import MEDSTorchDataConfig  # noqa: F401
-from .pytorch_dataset import MEDSPytorchDataset  # noqa: F401
-from .types import MEDSTorchBatch  # noqa: F401
+from .config import MEDSTorchDataConfig
+from .pytorch_dataset import MEDSPytorchDataset
+from .types import MEDSTorchBatch
 
-__all__ = ["MEDSPytorchDataset", "MEDSTorchDataConfig", "MEDSTorchBatch"]
+__all__ = ["MEDSPytorchDataset", "MEDSTorchBatch", "MEDSTorchDataConfig"]

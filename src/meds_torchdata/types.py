@@ -31,7 +31,7 @@ class SubsequenceSamplingStrategy(StrEnum):
     FROM_START = "from_start"
 
     def subsample_st_offset(
-        strategy,
+        self,
         seq_len: int,
         max_seq_len: int,
         rng: SEED_OR_RNG = None,
@@ -67,7 +67,7 @@ class SubsequenceSamplingStrategy(StrEnum):
         if seq_len <= max_seq_len:
             return None
 
-        match strategy:
+        match self:
             case SubsequenceSamplingStrategy.RANDOM:
                 return resolve_rng(rng).choice(seq_len - max_seq_len)
             case SubsequenceSamplingStrategy.TO_END:
@@ -75,7 +75,7 @@ class SubsequenceSamplingStrategy(StrEnum):
             case SubsequenceSamplingStrategy.FROM_START:
                 return 0
             case _:
-                raise ValueError(f"Invalid subsequence sampling strategy {strategy}!")
+                raise ValueError(f"Invalid subsequence sampling strategy {self}!")
 
 
 class StaticInclusionMode(StrEnum):
@@ -672,7 +672,7 @@ class MEDSTorchBatch:
 
     def items(self) -> Generator[tuple[str, torch.Tensor], None, None]:
         """Get the items of the batch."""
-        yield from zip(self.keys(), self.values())
+        yield from zip(self.keys(), self.values(), strict=False)
 
     @property
     def mode(self) -> BatchMode:

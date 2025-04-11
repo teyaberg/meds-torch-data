@@ -186,7 +186,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 "Issue #79 for tracking this issue."
             )
 
-        self.index = list(zip(self.schema_df[subject_id_field], self.schema_df[self.END_IDX]))
+        self.index = list(zip(self.schema_df[subject_id_field], self.schema_df[self.END_IDX], strict=False))
         self.labels = self.schema_df[self.LABEL_COL] if self.has_task else None
 
     @property

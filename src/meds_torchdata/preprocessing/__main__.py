@@ -24,12 +24,12 @@ def main(cfg: DictConfig):
 
     # Then we construct the rest of the command
     command_parts = [
-        f"INPUT_DIR={str(MEDS_dataset_dir.resolve())}",
-        f"OUTPUT_DIR={str(output_dir.resolve())}",
+        f"INPUT_DIR={MEDS_dataset_dir.resolve()!s}",
+        f"OUTPUT_DIR={output_dir.resolve()!s}",
         "MEDS_transform-runner",
-        f"--config-path={str(RUNNER_CFG.parent.resolve())}",
+        f"--config-path={RUNNER_CFG.parent.resolve()!s}",
         f"--config-name={RUNNER_CFG.stem}",
-        f"pipeline_config_fp={str(etl_cfg.resolve())}",
+        f"pipeline_config_fp={etl_cfg.resolve()!s}",
     ]
     if int(os.getenv("N_WORKERS", 1)) <= 1:
         logger.info("Running in serial mode as N_WORKERS is not set.")

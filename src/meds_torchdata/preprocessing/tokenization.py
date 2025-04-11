@@ -13,11 +13,10 @@ from pathlib import Path
 
 import hydra
 import polars as pl
-from omegaconf import DictConfig, OmegaConf
-
 from MEDS_transforms import PREPROCESS_CONFIG_YAML
 from MEDS_transforms.mapreduce.utils import rwlock_wrap, shard_iterator
 from MEDS_transforms.utils import write_lazyframe
+from omegaconf import DictConfig, OmegaConf
 
 SECONDS_PER_MINUTE = 60.0
 SECONDS_PER_HOUR = SECONDS_PER_MINUTE * 60.0
@@ -279,7 +278,7 @@ def main(cfg: DictConfig):
         schema_out_fp = output_dir / "schemas" / sharded_path
         event_seq_out_fp = output_dir / "event_seqs" / sharded_path
 
-        logger.info(f"Tokenizing {str(in_fp.resolve())} into schemas at {str(schema_out_fp.resolve())}")
+        logger.info(f"Tokenizing {in_fp.resolve()!s} into schemas at {schema_out_fp.resolve()!s}")
 
         rwlock_wrap(
             in_fp,
@@ -290,7 +289,7 @@ def main(cfg: DictConfig):
             do_overwrite=cfg.do_overwrite,
         )
 
-        logger.info(f"Tokenizing {str(in_fp.resolve())} into event_seqs at {str(event_seq_out_fp.resolve())}")
+        logger.info(f"Tokenizing {in_fp.resolve()!s} into event_seqs at {event_seq_out_fp.resolve()!s}")
 
         rwlock_wrap(
             in_fp,

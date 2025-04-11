@@ -27,9 +27,9 @@ def test_preprocess_parallel(simple_static_MEDS: Path):
         cohort_dir = Path(root_dir) / "cohort"
         command = [
             str(PREPROCESS_SCRIPT),
-            f"MEDS_dataset_dir={str(simple_static_MEDS)}",
-            f"output_dir={str(cohort_dir)}",
-            f"stage_runner_fp={str(runner_fp)}",
+            f"MEDS_dataset_dir={simple_static_MEDS!s}",
+            f"output_dir={cohort_dir!s}",
+            f"stage_runner_fp={runner_fp!s}",
         ]
 
         out = subprocess.run(" ".join(command), shell=True, check=False, capture_output=True)

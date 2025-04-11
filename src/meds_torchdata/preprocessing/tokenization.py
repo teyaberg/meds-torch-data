@@ -15,8 +15,6 @@ import hydra
 import polars as pl
 from omegaconf import DictConfig, OmegaConf
 
-logger = logging.getLogger(__name__)
-
 from MEDS_transforms import PREPROCESS_CONFIG_YAML
 from MEDS_transforms.mapreduce.utils import rwlock_wrap, shard_iterator
 from MEDS_transforms.utils import write_lazyframe
@@ -24,6 +22,8 @@ from MEDS_transforms.utils import write_lazyframe
 SECONDS_PER_MINUTE = 60.0
 SECONDS_PER_HOUR = SECONDS_PER_MINUTE * 60.0
 SECONDS_PER_DAY = SECONDS_PER_HOUR * 24.0
+
+logger = logging.getLogger(__name__)
 
 
 def fill_to_nans(col: str | pl.Expr) -> pl.Expr:
@@ -183,12 +183,14 @@ def extract_statics_and_schema(df: pl.LazyFrame) -> pl.LazyFrame:
 
     # This collects static data by subject ID and stores only (as a list) the codes and numeric values.
     static_by_subject = static.group_by("subject_id", maintain_order=True).agg(
-        pl.col("code").alias("static_code"), pl.col("numeric_value").alias("static_numeric_value")
+        pl.col("code").alias("static_code"),
+        pl.col("numeric_value").alias("static_numeric_value"),
     )
 
     # This collects the unique times for each subject.
     schema_by_subject = dynamic.group_by("subject_id", maintain_order=True).agg(
-        pl.col("time").min().alias("start_time"), pl.col("time").unique(maintain_order=True)
+        pl.col("time").min().alias("start_time"),
+        pl.col("time").unique(maintain_order=True),
     )
 
     return static_by_subject.join(schema_by_subject, on="subject_id", how="full", coalesce=True)
@@ -248,7 +250,9 @@ def extract_seq_of_subject_events(df: pl.LazyFrame) -> pl.LazyFrame:
 
 
 @hydra.main(
-    version_base=None, config_path=str(PREPROCESS_CONFIG_YAML.parent), config_name=PREPROCESS_CONFIG_YAML.stem
+    version_base=None,
+    config_path=str(PREPROCESS_CONFIG_YAML.parent),
+    config_name=PREPROCESS_CONFIG_YAML.stem,
 )
 def main(cfg: DictConfig):
     """Tokenizes the dataset in accordance with the aggregated code metadata.

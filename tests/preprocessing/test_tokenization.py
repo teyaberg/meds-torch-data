@@ -157,7 +157,10 @@ WANT_SCHEMAS_TRAIN_0 = pl.DataFrame(
     {
         "subject_id": [239684, 1195293],
         "static_code": [[7, 9], [6, 9]],
-        "static_numeric_value": [[None, 1.5770268440246582], [None, 0.06802856922149658]],
+        "static_numeric_value": [
+            [None, 1.5770268440246582],
+            [None, 0.06802856922149658],
+        ],
         "start_time": [ts[0] for ts in TRAIN_0_TIMES],
         "time": TRAIN_0_TIMES,
     },
@@ -208,15 +211,26 @@ WANT_EVENT_SEQ_TRAIN_0 = pl.DataFrame(
 )
 
 TRAIN_1_TIMES = [
-    [datetime(1978, 3, 9), datetime(2010, 5, 26, 2, 30, 56), datetime(2010, 5, 26, 4, 51, 52)],
-    [datetime(1976, 3, 28), datetime(2010, 2, 5, 5, 55, 39), datetime(2010, 2, 5, 7, 2, 30)],
+    [
+        datetime(1978, 3, 9),
+        datetime(2010, 5, 26, 2, 30, 56),
+        datetime(2010, 5, 26, 4, 51, 52),
+    ],
+    [
+        datetime(1976, 3, 28),
+        datetime(2010, 2, 5, 5, 55, 39),
+        datetime(2010, 2, 5, 7, 2, 30),
+    ],
 ]
 
 WANT_SCHEMAS_TRAIN_1 = pl.DataFrame(
     {
         "subject_id": [68729, 814703],
         "static_code": [[8, 9], [8, 9]],
-        "static_numeric_value": [[None, -0.5438239574432373], [None, -1.1012336015701294]],
+        "static_numeric_value": [
+            [None, -0.5438239574432373],
+            [None, -1.1012336015701294],
+        ],
         "start_time": [ts[0] for ts in TRAIN_1_TIMES],
         "time": TRAIN_1_TIMES,
     },
@@ -229,14 +243,28 @@ WANT_EVENT_SEQ_TRAIN_1 = pl.DataFrame(
         "time_delta_days": ts_to_time_delta_days(TRAIN_1_TIMES),
         "code": [[[5], [3, 10, 11], [4]], [[5], [2, 10, 11], [4]]],
         "numeric_value": [
-            [[float("nan")], [float("nan"), -1.4474751949310303, -0.3404940366744995], [float("nan")]],
-            [[float("nan")], [float("nan"), 3.0046675205230713, 0.8490786552429199], [float("nan")]],
+            [
+                [float("nan")],
+                [float("nan"), -1.4474751949310303, -0.3404940366744995],
+                [float("nan")],
+            ],
+            [
+                [float("nan")],
+                [float("nan"), 3.0046675205230713, 0.8490786552429199],
+                [float("nan")],
+            ],
         ],
     },
     schema=SEQ_SCHEMA,
 )
 
-TUNING_0_TIMES = [[datetime(1988, 12, 19), datetime(2010, 1, 3, 6, 27, 59), datetime(2010, 1, 3, 8, 22, 13)]]
+TUNING_0_TIMES = [
+    [
+        datetime(1988, 12, 19),
+        datetime(2010, 1, 3, 6, 27, 59),
+        datetime(2010, 1, 3, 8, 22, 13),
+    ]
+]
 
 WANT_SCHEMAS_TUNING_0 = pl.DataFrame(
     {
@@ -255,7 +283,11 @@ WANT_EVENT_SEQ_TUNING_0 = pl.DataFrame(
         "time_delta_days": ts_to_time_delta_days(TUNING_0_TIMES),
         "code": [[[5], [3, 10, 11], [4]]],
         "numeric_value": [
-            [[float("nan")], [float("nan"), 1.513569951057434, 0.6939190626144409], [float("nan")]],
+            [
+                [float("nan")],
+                [float("nan"), 1.513569951057434, 0.6939190626144409],
+                [float("nan")],
+            ],
         ],
     },
     schema=SEQ_SCHEMA,

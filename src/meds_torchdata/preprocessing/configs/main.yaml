@@ -23,7 +23,7 @@ hydra:
   help:
     app_name: "MTD_preprocess"
 
-    template: |-2
+    template: |2-
       == ${hydra.help.app_name} ==
 
       ${hydra.help.app_name} is a command line tool for pre-processing MEDS data for use with meds_torchdata.

@@ -1,9 +1,3 @@
-import rootutils
-
-root = rootutils.setup_root(__file__, dotenv=True, pythonpath=True, cwd=False)
-
-OUTPUT_DIR = root / "benchmark" / "outputs"
-
 import json
 import sys
 from collections import defaultdict
@@ -17,6 +11,12 @@ import torch
 from mixins import MemTrackableMixin, TimeableMixin, add_mixin
 
 from meds_torchdata.pytorch_dataset import MEDSPytorchDataset, MEDSTorchDataConfig
+
+import rootutils
+
+root = rootutils.setup_root(__file__, dotenv=True, pythonpath=True, cwd=False)
+
+OUTPUT_DIR = root / "benchmark" / "outputs"
 
 
 def tensor_size(a: torch.Tensor) -> int:
@@ -115,7 +115,11 @@ def test_profile(benchmark_dataset: Path, batch_size: int, max_seq_len: int, num
     methods_to_track = ["__getitem__", "collate"]
 
     TrackableDataset = add_mixin(
-        add_mixin(MEDSPytorchDataset, TimeableMixin, {m: TimeableMixin.TimeAs for m in methods_to_track}),
+        add_mixin(
+            MEDSPytorchDataset,
+            TimeableMixin,
+            {m: TimeableMixin.TimeAs for m in methods_to_track},
+        ),
         MemTrackableMixin,
         {},
     )

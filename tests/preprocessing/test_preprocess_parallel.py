@@ -1,6 +1,5 @@
 """Tests the full, multi-stage pre-processing pipeline in parallel mode."""
 
-
 import subprocess
 import tempfile
 from pathlib import Path

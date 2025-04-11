@@ -30,7 +30,7 @@ If your input MEDS dataset lives in `$MEDS_ROOT` and you want to store your pre-
 `$PYD_ROOT`, you run:
 
 ```bash
-MTD_preprocess input_dir="$MEDS_ROOT" output_dir="$PYD_ROOT"
+MTD_preprocess MEDS_dataset_dir="$MEDS_ROOT" output_dir="$PYD_ROOT"
 ```
 
 ### Step 3: Use the dataset

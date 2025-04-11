@@ -1,6 +1,5 @@
 """Test set-up and fixtures code."""
 
-
 import subprocess
 import tempfile
 from contextlib import contextmanager

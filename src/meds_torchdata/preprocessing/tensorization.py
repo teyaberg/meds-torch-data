@@ -99,7 +99,6 @@ def convert_to_NRT(df: pl.LazyFrame) -> JointNestedRaggedTensorDict:
         >>> nrt = convert_to_NRT(df.lazy())
         >>> nrt
         JointNestedRaggedTensorDict(processed_tensors={}, schema={})
-
     """
 
     # There should only be one time delta column, but this ensures we catch it regardless of the unit of time
@@ -123,7 +122,9 @@ def convert_to_NRT(df: pl.LazyFrame) -> JointNestedRaggedTensorDict:
 
 
 @hydra.main(
-    version_base=None, config_path=str(PREPROCESS_CONFIG_YAML.parent), config_name=PREPROCESS_CONFIG_YAML.stem
+    version_base=None,
+    config_path=str(PREPROCESS_CONFIG_YAML.parent),
+    config_name=PREPROCESS_CONFIG_YAML.stem,
 )
 def main(cfg: DictConfig):
     """Tensorizes the data into the nested ragged tensor formulation.

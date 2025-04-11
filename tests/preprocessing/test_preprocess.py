@@ -1,5 +1,7 @@
-"""Tests the full, multi-stage pre-processing pipeline. Only checks tokenized and tensorized outputs."""
+"""Tests the full, multi-stage pre-processing pipeline.
 
+Only checks tokenized and tensorized outputs.
+"""
 
 import subprocess
 import tempfile

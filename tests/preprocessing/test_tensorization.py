@@ -12,7 +12,7 @@ from . import TENSORIZATION_SCRIPT, single_stage_transform_tester
 from .test_tokenization import WANT_EVENT_SEQS as TOKENIZED_SHARDS
 
 WANT_NRTS = {
-    f'{k.replace("event_seqs/", "")}.nrt': JointNestedRaggedTensorDict(
+    f"{k.replace('event_seqs/', '')}.nrt": JointNestedRaggedTensorDict(
         v.select("time_delta_days", "code", "numeric_value").to_dict(as_series=False)
     )
     for k, v in TOKENIZED_SHARDS.items()

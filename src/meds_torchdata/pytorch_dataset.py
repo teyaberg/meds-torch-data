@@ -144,7 +144,13 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             label_df.join(schema_df, on=subject_id_field, how="inner", maintain_order="left")
             .with_row_index("_row")
             .explode(time_field)
-            .group_by("_row", subject_id_field, prediction_time_field, cls.LABEL_COL, maintain_order=True)
+            .group_by(
+                "_row",
+                subject_id_field,
+                prediction_time_field,
+                cls.LABEL_COL,
+                maintain_order=True,
+            )
             .agg(end_idx_expr)
             .select(subject_id_field, cls.END_IDX, prediction_time_field, cls.LABEL_COL)
         )
@@ -320,7 +326,10 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         subject_id, end_idx = self.index[idx]
         dynamic_data, static_data = self.load_subject_data(subject_id=subject_id, st=0, end=end_idx)
 
-        out = {"static_code": static_data.code, "static_numeric_value": static_data.numeric_value}
+        out = {
+            "static_code": static_data.code,
+            "static_numeric_value": static_data.numeric_value,
+        }
 
         out["dynamic"] = self.config.process_dynamic_data(dynamic_data, rng=seed)
 

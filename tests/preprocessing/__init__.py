@@ -188,16 +188,16 @@ def check_NRT_output(
     got_tensors = got_nrt.tensors
 
     assert got_tensors.keys() == want_tensors.keys(), (
-        f"{msg}:\n" f"Wanted:\n{list(want_tensors.keys())}\n" f"Got:\n{list(got_tensors.keys())}"
+        f"{msg}:\nWanted:\n{list(want_tensors.keys())}\nGot:\n{list(got_tensors.keys())}"
     )
 
     for k in want_tensors.keys():
         want_v = want_tensors[k]
         got_v = got_tensors[k]
 
-        assert type(want_v) is type(
-            got_v
-        ), f"{msg}: Wanted {k} to be of type {type(want_v)}, got {type(got_v)}."
+        assert type(want_v) is type(got_v), (
+            f"{msg}: Wanted {k} to be of type {type(want_v)}, got {type(got_v)}."
+        )
 
         if isinstance(want_v, list):
             assert len(want_v) == len(got_v), (
@@ -266,7 +266,7 @@ def dict_to_hydra_kwargs(d: dict[str, str]) -> str:
                     handled = False
                     for mod in modifier_chars:
                         if inner_kv.startswith(mod):
-                            out.append(f"{mod}{k}.{inner_kv[len(mod):]}")
+                            out.append(f"{mod}{k}.{inner_kv[len(mod) :]}")
                             handled = True
                             break
                     if not handled:
@@ -516,7 +516,7 @@ def single_stage_tester(
         if stdout_regex is not None:
             regex = re.compile(stdout_regex)
             assert regex.search(stdout) is not None, (
-                f"Expected stdout to match regex:\n{stdout_regex}\n" f"Got:\n{stdout}"
+                f"Expected stdout to match regex:\n{stdout_regex}\nGot:\n{stdout}"
             )
 
         try:

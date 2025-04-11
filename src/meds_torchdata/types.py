@@ -1,4 +1,4 @@
-"""Exports simple type definitions used in MEDS torchdata"""
+"""Exports simple type definitions used in MEDS torchdata."""
 
 from collections.abc import Generator
 from dataclasses import dataclass, fields
@@ -122,7 +122,6 @@ class StaticData(NamedTuple):
 
 @dataclass
 class MEDSTorchBatch:
-
     """Simple data structure to hold a batch of MEDS data.
 
     Can be accessed by attribute (e.g., `batch.code`) or string key (e.g. `batch["code"]`). The elements in
@@ -572,7 +571,12 @@ class MEDSTorchBatch:
     """
 
     PAD_INDEX: ClassVar[int] = 0
-    _REQ_TENSORS: ClassVar[list[str]] = ["code", "numeric_value", "numeric_value_mask", "time_delta_days"]
+    _REQ_TENSORS: ClassVar[list[str]] = [
+        "code",
+        "numeric_value",
+        "numeric_value_mask",
+        "time_delta_days",
+    ]
 
     code: torch.LongTensor | None = None
     numeric_value: torch.FloatTensor | None = None
@@ -649,7 +653,10 @@ class MEDSTorchBatch:
         return getattr(self, key)
 
     def __setitem__(self, key: str, value: torch.Tensor) -> None:
-        """Set a tensor in the batch by key. Only valid if the key is a valid field."""
+        """Set a tensor in the batch by key.
+
+        Only valid if the key is a valid field.
+        """
         raise ValueError("MEDSTorchBatch is immutable!")
 
     def keys(self) -> Generator[str, None, None]:
@@ -698,17 +705,26 @@ class MEDSTorchBatch:
 
     @property
     def max_events_per_subject(self) -> int | None:
-        """The maximum number of events for any subject in the batch. Only valid in SEM mode."""
+        """The maximum number of events for any subject in the batch.
+
+        Only valid in SEM mode.
+        """
         return self.code.shape[1] if self.mode is BatchMode.SEM else None
 
     @property
     def max_measurements_per_event(self) -> int | None:
-        """The maximum number of measurements for any event in the batch. Only valid in SEM mode."""
+        """The maximum number of measurements for any event in the batch.
+
+        Only valid in SEM mode.
+        """
         return self.code.shape[2] if self.mode is BatchMode.SEM else None
 
     @property
     def max_measurements_per_subject(self) -> int | None:
-        """The maximum number of measurements for any subject in the batch. Only valid in SM mode."""
+        """The maximum number of measurements for any subject in the batch.
+
+        Only valid in SM mode.
+        """
         return self.code.shape[1] if self.mode is BatchMode.SM else None
 
     @property
@@ -758,7 +774,11 @@ class MEDSTorchBatch:
             >>> print(batch._SEM_shape)
             (2, 2, 3)
         """
-        return (self.batch_size, self.max_events_per_subject, self.max_measurements_per_event)
+        return (
+            self.batch_size,
+            self.max_events_per_subject,
+            self.max_measurements_per_event,
+        )
 
     @property
     def _SM_shape(self) -> tuple[int, int]:

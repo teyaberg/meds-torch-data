@@ -1,6 +1,5 @@
 """This file exports pytest fixtures for static pytorch datasets for downstream testing use."""
 
-
 import subprocess
 import tempfile
 from pathlib import Path
@@ -62,7 +61,7 @@ def sample_pytorch_dataset(tensorized_MEDS_dataset: Path) -> MEDSPytorchDataset:
 
 @pytest.fixture(scope="session")
 def sample_pytorch_dataset_with_task(
-    tensorized_MEDS_dataset_with_task: tuple[Path, Path, str]
+    tensorized_MEDS_dataset_with_task: tuple[Path, Path, str],
 ) -> MEDSPytorchDataset:
     cohort_dir, tasks_dir, task_name = tensorized_MEDS_dataset_with_task
 

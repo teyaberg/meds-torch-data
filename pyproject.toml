@@ -20,7 +20,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "pytest", "polars", "nested_ragged_tensors>=0.1.0", "numpy", "ml-mixins", "torch", "MEDS_transforms>=0.1.0",
+    "pytest", "polars", "nested_ragged_tensors>=0.1.0", "numpy", "torch", "MEDS_transforms>=0.1.0",
     "hydra-core", "omegaconf", "meds_testing_helpers>=0.2.4"
 ]
 

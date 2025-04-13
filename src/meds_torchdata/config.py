@@ -22,7 +22,7 @@ class MEDSTorchDataConfig:
     """A data class for storing configuration options for building a PyTorch dataset from a MEDS dataset.
 
     Attributes:
-        seq_len: The maximum length of sequences to yield from the dataset.
+        max_seq_len: The maximum length of sequences to yield from the dataset.
         subseq_sampling_strategy: The subsequence sampling strategy for the dataset.
 
     Raises:

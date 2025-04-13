@@ -24,7 +24,6 @@ class MEDSTorchDataConfig:
     Attributes:
         seq_len: The maximum length of sequences to yield from the dataset.
         subseq_sampling_strategy: The subsequence sampling strategy for the dataset.
-        subseq_len: The length of the subsequences in the dataset.
 
     Raises:
         FileNotFoundError: If the task_labels_dir or the tensorized_cohort_dir is not a valid directory.

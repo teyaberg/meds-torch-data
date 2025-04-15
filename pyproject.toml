@@ -20,7 +20,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "pytest", "polars", "nested_ragged_tensors>=0.1.0", "numpy", "torch", "MEDS_transforms~=0.2.0",
+    "pytest", "polars", "nested_ragged_tensors>=0.1.0", "numpy", "torch", "MEDS_transforms~=0.4.0",
     "hydra-core", "omegaconf", "meds_testing_helpers>=0.2.4"
 ]
 
@@ -37,8 +37,6 @@ docs = [
 ]
 
 [project.scripts]
-MTD_tokenize = "meds_torchdata.preprocessing.tokenization:main"
-MTD_tensorize = "meds_torchdata.preprocessing.tensorization:main"
 MTD_preprocess = "meds_torchdata.preprocessing.__main__:main"
 
 [tool.pytest.ini_options]
@@ -55,6 +53,10 @@ doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS"]
 
 [project.entry-points.pytest11]
 meds_torchdata = "meds_torchdata.pytest_plugin"
+
+[project.entry-points."MEDS_transforms.stages"]
+tokenization = "meds_torchdata.preprocessing.tokenization:main"
+tensorization = "meds_torchdata.preprocessing.tensorization:main"
 
 [project.urls]
 Homepage = "https://github.com/mmcdermott/meds-torch-data"

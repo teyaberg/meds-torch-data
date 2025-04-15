@@ -3,11 +3,10 @@
 import logging
 from functools import partial
 
-import hydra
 import polars as pl
-from MEDS_transforms import PREPROCESS_CONFIG_YAML
-from MEDS_transforms.mapreduce.mapper import map_over
-from MEDS_transforms.mapreduce.utils import shard_iterator
+from MEDS_transforms.mapreduce import map_stage
+from MEDS_transforms.mapreduce.shard_iteration import shard_iterator
+from MEDS_transforms.stages import Stage
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 from omegaconf import DictConfig
 
@@ -121,18 +120,14 @@ def convert_to_NRT(df: pl.LazyFrame) -> JointNestedRaggedTensorDict:
     return JointNestedRaggedTensorDict(tensors_dict)
 
 
-@hydra.main(
-    version_base=None,
-    config_path=str(PREPROCESS_CONFIG_YAML.parent),
-    config_name=PREPROCESS_CONFIG_YAML.stem,
-)
+@Stage.register(is_metadata=False)
 def main(cfg: DictConfig):
     """Tensorizes the data into the nested ragged tensor formulation.
 
     See the stage configs for args.
     """
 
-    map_over(
+    map_stage(
         cfg,
         compute_fn=convert_to_NRT,
         write_fn=JointNestedRaggedTensorDict.save,

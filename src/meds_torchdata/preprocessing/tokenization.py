@@ -11,11 +11,11 @@ columns of concern here thus are `subject_id`, `time`, `code`, `numeric_value`.
 import logging
 from pathlib import Path
 
-import hydra
 import polars as pl
-from MEDS_transforms import PREPROCESS_CONFIG_YAML
-from MEDS_transforms.mapreduce.utils import rwlock_wrap, shard_iterator
-from MEDS_transforms.utils import write_lazyframe
+from MEDS_transforms.dataframe import write_df
+from MEDS_transforms.mapreduce.rwlock import rwlock_wrap
+from MEDS_transforms.mapreduce.shard_iteration import shard_iterator
+from MEDS_transforms.stages import Stage
 from omegaconf import DictConfig, OmegaConf
 
 SECONDS_PER_MINUTE = 60.0
@@ -248,11 +248,7 @@ def extract_seq_of_subject_events(df: pl.LazyFrame) -> pl.LazyFrame:
     )
 
 
-@hydra.main(
-    version_base=None,
-    config_path=str(PREPROCESS_CONFIG_YAML.parent),
-    config_name=PREPROCESS_CONFIG_YAML.stem,
-)
+@Stage.register(is_metadata=False)
 def main(cfg: DictConfig):
     """Tokenizes the dataset in accordance with the aggregated code metadata.
 
@@ -284,7 +280,7 @@ def main(cfg: DictConfig):
             in_fp,
             schema_out_fp,
             pl.scan_parquet,
-            write_lazyframe,
+            write_df,
             extract_statics_and_schema,
             do_overwrite=cfg.do_overwrite,
         )
@@ -295,7 +291,7 @@ def main(cfg: DictConfig):
             in_fp,
             event_seq_out_fp,
             pl.scan_parquet,
-            write_lazyframe,
+            write_df,
             extract_seq_of_subject_events,
             do_overwrite=cfg.do_overwrite,
         )

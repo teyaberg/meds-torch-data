@@ -411,15 +411,6 @@ def test_tokenization():
     single_stage_transform_tester(
         transform_script=TOKENIZATION_SCRIPT,
         stage_name="tokenization",
-        transform_stage_kwargs={"++train_only": True},
-        input_shards=NORMALIZED_SHARDS,
-        want_data={**WANT_SCHEMAS, **WANT_EVENT_SEQS},
-        should_error=True,
-    )
-
-    single_stage_transform_tester(
-        transform_script=TOKENIZATION_SCRIPT,
-        stage_name="tokenization",
         transform_stage_kwargs=None,
         input_shards=NORMALIZED_SHARDS_MISSING_STATIC,
         want_data={**WANT_SCHEMAS_MISSING_STATIC, **WANT_EVENT_SEQS},

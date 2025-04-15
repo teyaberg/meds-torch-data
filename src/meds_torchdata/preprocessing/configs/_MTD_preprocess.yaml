@@ -1,25 +1,17 @@
-defaults:
-  - _pipeline
-  - stage_configs:
-      - fit_normalization
-      - fit_vocabulary_indices
-  - _self_
-
 input_dir: ${oc.env:INPUT_DIR}
-cohort_dir: ${oc.env:OUTPUT_DIR}
+output_dir: ${oc.env:OUTPUT_DIR}
 
 etl_metadata.pipeline_name: "tensorization"
 
-stage_configs:
-  fit_normalization:
-    _script: "MEDS_transform-aggregate_code_metadata"
-  tokenization:
-    _script: "MTD_tokenize"
-  tensorization:
-    _script: "MTD_tensorize"
-
 stages:
-  - fit_normalization
+  - fit_normalization:
+      aggregations:
+        - "code/n_occurrences"
+        - "code/n_subjects"
+        - "values/n_occurrences"
+        - "values/sum"
+        - "values/sum_sqd"
+    _base_stage: aggregate_code_metadata
   - fit_vocabulary_indices
   - normalization
   - tokenization

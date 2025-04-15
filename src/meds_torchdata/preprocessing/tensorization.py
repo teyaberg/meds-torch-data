@@ -129,7 +129,7 @@ def main(cfg: DictConfig):
 
     map_stage(
         cfg,
-        compute_fn=convert_to_NRT,
+        convert_to_NRT,
         write_fn=JointNestedRaggedTensorDict.save,
         shard_iterator_fntr=partial(shard_iterator, in_prefix="event_seqs/", out_suffix=".nrt"),
     )

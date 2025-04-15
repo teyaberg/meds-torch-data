@@ -26,7 +26,7 @@ def main(cfg: DictConfig):
     command_parts = [
         f"INPUT_DIR={MEDS_dataset_dir.resolve()!s}",
         f"OUTPUT_DIR={output_dir.resolve()!s}",
-        "MEDS_transform-runner",
+        "MEDS_transform-pipeline",
         f"--config-path={RUNNER_CFG.parent.resolve()!s}",
         f"--config-name={RUNNER_CFG.stem}",
         f"pipeline_config_fp={etl_cfg.resolve()!s}",
@@ -40,8 +40,6 @@ def main(cfg: DictConfig):
 
     if cfg.get("do_overwrite", None) is not None:
         command_parts.append(f"++do_overwrite={cfg.do_overwrite}")
-
-    command_parts.append("'hydra.searchpath=[pkg://MEDS_transforms.configs]'")
 
     full_cmd = " ".join(command_parts)
     logger.info(f"Running command: {full_cmd}")

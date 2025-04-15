@@ -1,5 +1,5 @@
 input_dir: ${oc.env:INPUT_DIR}
-cohort_dir: ${oc.env:OUTPUT_DIR}
+output_dir: ${oc.env:OUTPUT_DIR}
 
 etl_metadata.pipeline_name: "tensorization"
 

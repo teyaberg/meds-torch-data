@@ -7,9 +7,11 @@ enumeration objects for categorical options and a general DataClass configuratio
 import logging
 from collections.abc import Generator
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
 import numpy as np
+import polars as pl
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
 from .types import BatchMode, StaticInclusionMode, SubsequenceSamplingStrategy
@@ -158,8 +160,45 @@ class MEDSTorchDataConfig:
                 )
 
     @property
+    def code_metadata_fp(self) -> Path:
+        """Return the code metadata file for this cohort.
+
+        The path need not exist to be returned.
+
+        Examples:
+            >>> with tempfile.TemporaryDirectory() as tmpdir:
+            ...     cfg = MEDSTorchDataConfig(Path(tmpdir), max_seq_len=10)
+            >>> cfg.code_metadata_fp
+            PosixPath('/tmp/tmp.../metadata/codes.parquet')
+        """
+        return self.tensorized_cohort_dir / "metadata" / "codes.parquet"
+
+    @cached_property
+    def vocab_size(self) -> int:
+        """Reads the code indices from the metadata file and returns the size of the vocabulary.
+
+        The vocabulary size is the maximum index in the code metadata file plus one. This is a cached property
+        to avoid reading the file multiple times.
+
+        Examples:
+            >>> df = pl.DataFrame({"code/vocab_index": [0, 1, 3]})
+            >>> with tempfile.TemporaryDirectory() as tmpdir:
+            ...     tensorized_root = Path(tmpdir)
+            ...     metadata_fp = tensorized_root / "metadata" / "codes.parquet"
+            ...     metadata_fp.parent.mkdir(parents=True)
+            ...     df.write_parquet(metadata_fp)
+            ...     cfg = MEDSTorchDataConfig(tensorized_root, max_seq_len=10)
+            ...     print(cfg.vocab_size)
+            4
+        """
+        df = pl.read_parquet(self.code_metadata_fp, columns=["code/vocab_index"], use_pyarrow=True)
+        return df.select(pl.col("code/vocab_index")).max().item() + 1
+
+    @property
     def schema_dir(self) -> Path:
-        """Return the schema directory for the tensorized cohort. The path need not exist to be returned.
+        """Return the schema directory for the tensorized cohort.
+
+        The path need not exist to be returned.
 
         Examples:
             >>> with tempfile.TemporaryDirectory() as tmpdir:

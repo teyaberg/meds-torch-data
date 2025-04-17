@@ -196,8 +196,9 @@ File path parameters include:
 - `tensorized_cohort_dir`: The directory containing the tensorized data.
 - `task_labels_dir`: The directory containing the task labels files.
 
-Let's start by building a configuration object for this data and inspect some of its file-path related
-properties and helpers:
+It also provides a convenient property to get the vocab size for the dataset, given by the vocab indices in
+the tensorized metadata. Let's start by building a configuration object for this data and inspect some of its
+file-path related properties and helpers:
 
 ```python
 >>> from meds_torchdata import MEDSTorchDataConfig
@@ -215,6 +216,8 @@ PosixPath('/tmp/tmp.../tokenization/schemas')
 None
 >>> print(cfg.task_labels_fps)
 None
+>>> print(cfg.vocab_size)
+12
 
 ```
 

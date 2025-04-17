@@ -14,7 +14,7 @@ import numpy as np
 import polars as pl
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
-from .types import BatchMode, StaticInclusionMode, SubsequenceSamplingStrategy
+from .types import BatchMode, PaddingSide, StaticInclusionMode, SubsequenceSamplingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +111,7 @@ class MEDSTorchDataConfig:
     # Sequence lengths and padding
     max_seq_len: int
     seq_sampling_strategy: SubsequenceSamplingStrategy = SubsequenceSamplingStrategy.RANDOM
+    padding_side: PaddingSide = PaddingSide.RIGHT
 
     # Static Data
     static_inclusion_mode: StaticInclusionMode = StaticInclusionMode.INCLUDE

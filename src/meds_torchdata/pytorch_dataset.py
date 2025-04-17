@@ -527,9 +527,123 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                                                              [False,  True]]),
                            boolean_value=tensor([False,  True]))
 
+            You can also change the padding side. This defaults to "right" (which is typical for modeling) but
+            you can set it to "left" for generative use cases. To show this, we'll also set the sampling
+            strategy to `SubsequenceSamplingStrategy.TO_END` so that things are consistent.
+
+            >>> from meds_torchdata.types import SubsequenceSamplingStrategy
+            >>> sample_pytorch_dataset.config.padding_side = "left"
+            >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.TO_END
+            >>> batch = [sample_pytorch_dataset[i] for i in range(len(sample_pytorch_dataset))]
+            >>> sample_pytorch_dataset.collate(batch)
+             MEDSTorchBatch(code=tensor([[ 0,  0,  0,  0,  0,  5,  3, 10, 11,  4],
+                                         [ 0,  0,  0,  0,  0,  5,  2, 10, 11,  4],
+                                         [ 1, 10, 11, 10, 11, 10, 11, 10, 11,  4],
+                                         [11, 10, 11, 10, 11, 10, 11, 10, 11,  4]]),
+                            numeric_value=tensor([[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,
+                                                    0.0000e+00, 0.0000e+00,  0.0000e+00, -1.4475e+00,
+                                                    -3.4049e-01,  0.0000e+00],
+                                                  [ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,
+                                                    0.0000e+00, 0.0000e+00,  0.0000e+00,  3.0047e+00,
+                                                    8.4908e-01,  0.0000e+00],
+                                                  [ 0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01,
+                                                    -1.1680e+00, 1.3220e-03, -1.3749e+00, -4.0979e-02,
+                                                    -1.5301e+00,  0.0000e+00],
+                                                  [ 7.9736e-01,  3.3973e-01,  7.4564e-01, -4.6266e-02,
+                                                    6.9392e-01, -3.0007e-01,  7.9736e-01, -3.1065e-01,
+                                                    1.0042e+00,  0.0000e+00]]),
+                            numeric_value_mask=tensor([[ True,  True,  True,  True,  True, False, False,
+                                                         True, True, False],
+                                                       [ True,  True,  True,  True,  True, False, False,
+                                                         True,  True, False],
+                                                       [False,  True,  True,  True, True,  True,  True,  True,
+                                                         True, False],
+                                                       [ True,  True,  True,  True,  True,  True,  True,
+                                                         True,  True, False]]),
+                            time_delta_days=tensor([[0.0000e+00, 0.0000e+00, 0.0000e+00, 0.0000e+00,
+                                                     0.0000e+00, 0.0000e+00, 1.1766e+04, 0.0000e+00,
+                                                     0.0000e+00, 9.7870e-02],
+                                                    [0.0000e+00, 0.0000e+00, 0.0000e+00, 0.0000e+00,
+                                                     0.0000e+00, 0.0000e+00, 1.2367e+04, 0.0000e+00,
+                                                     0.0000e+00, 4.6424e-02],
+                                                    [1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
+                                                     0.0000e+00, 2.5544e-02, 0.0000e+00, 2.2025e-02,
+                                                     0.0000e+00, 2.0845e-02],
+                                                    [0.0000e+00, 1.3738e-02, 0.0000e+00, 1.8889e-02,
+                                                     0.0000e+00, 8.4838e-03, 0.0000e+00, 1.1678e-02,
+                                                     0.0000e+00, 5.9144e-03]]),
+                            event_mask=None,
+                            static_code=tensor([[8, 9],
+                                                [8, 9],
+                                                [7, 9],
+                                                [6, 9]]),
+                            static_numeric_value=tensor([[ 0.0000, -0.5438],
+                                                         [ 0.0000, -1.1012],
+                                                         [ 0.0000,  1.5770],
+                                                         [ 0.0000,  0.0680]]),
+                            static_numeric_value_mask=tensor([[False,  True],
+                                                              [False,  True],
+                                                              [False,  True],
+                                                              [False,  True]]),
+                            boolean_value=None)
+            >>> sample_pytorch_dataset.config.padding_side = "right"
+            >>> batch = [sample_pytorch_dataset[i] for i in range(len(sample_pytorch_dataset))]
+            >>> sample_pytorch_dataset.collate(batch)
+            MEDSTorchBatch(code=tensor([[ 5,  3, 10, 11,  4,  0,  0,  0,  0,  0],
+                                        [ 5,  2, 10, 11,  4,  0,  0,  0,  0,  0],
+                                        [ 1, 10, 11, 10, 11, 10, 11, 10, 11,  4],
+                                        [11, 10, 11, 10, 11, 10, 11, 10, 11,  4]]),
+                           numeric_value=tensor([[ 0.0000e+00,  0.0000e+00, -1.4475e+00, -3.4049e-01,
+                                                   0.0000e+00, 0.0000e+00,  0.0000e+00,  0.0000e+00,
+                                                   0.0000e+00,  0.0000e+00],
+                                                 [ 0.0000e+00,  0.0000e+00, 3.0047e+00,  8.4908e-01,
+                                                   0.0000e+00, 0.0000e+00,  0.0000e+00,  0.0000e+00,
+                                                   0.0000e+00,  0.0000e+00],
+                                                 [ 0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01,
+                                                  -1.1680e+00, 1.3220e-03, -1.3749e+00, -4.0979e-02,
+                                                  -1.5301e+00,  0.0000e+00],
+                                                 [ 7.9736e-01,  3.3973e-01,  7.4564e-01, -4.6266e-02,
+                                                   6.9392e-01, -3.0007e-01,  7.9736e-01, -3.1065e-01,
+                                                   1.0042e+00,  0.0000e+00]]),
+                           numeric_value_mask=tensor([[False, False,  True,  True, False,  True,  True,  True,
+                                                        True,  True],
+                                                      [False, False,  True,  True, False,  True,  True,  True,
+                                                        True,  True],
+                                                      [False,  True,  True,  True,  True,  True, True,  True,
+                                                        True, False],
+                                                      [ True,  True,  True,  True,  True,  True,  True,  True,
+                                                        True, False]]),
+                           time_delta_days=tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00,
+                                                    9.7870e-02, 0.0000e+00, 0.0000e+00, 0.0000e+00,
+                                                    0.0000e+00, 0.0000e+00],
+                                                   [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00,
+                                                    4.6424e-02, 0.0000e+00, 0.0000e+00, 0.0000e+00,
+                                                    0.0000e+00, 0.0000e+00],
+                                                   [1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
+                                                    0.0000e+00, 2.5544e-02, 0.0000e+00, 2.2025e-02,
+                                                    0.0000e+00, 2.0845e-02],
+                                                   [0.0000e+00, 1.3738e-02, 0.0000e+00, 1.8889e-02,
+                                                    0.0000e+00, 8.4838e-03, 0.0000e+00, 1.1678e-02,
+                                                    0.0000e+00, 5.9144e-03]]),
+                           event_mask=None,
+                           static_code=tensor([[8, 9],
+                                               [8, 9],
+                                               [7, 9],
+                                               [6, 9]]),
+                           static_numeric_value=tensor([[ 0.0000, -0.5438],
+                                                        [ 0.0000, -1.1012],
+                                                        [ 0.0000,  1.5770],
+                                                        [ 0.0000,  0.0680]]),
+                           static_numeric_value_mask=tensor([[False,  True],
+                                                             [False,  True],
+                                                             [False,  True],
+                                                             [False,  True]]),
+                           boolean_value=None)
+
             Static data can also be omitted if set in the config.
 
             >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.OMIT
+            >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.RANDOM
             >>> batch = [sample_pytorch_dataset[0], sample_pytorch_dataset[1]]
             >>> sample_pytorch_dataset.collate(batch)
             MEDSTorchBatch(code=tensor([[ 5,  3, 10, 11,  4],
@@ -582,9 +696,44 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                            static_numeric_value=None,
                            static_numeric_value_mask=None,
                            boolean_value=None)
+
+            Padding side changes work in this mode as well.
+
+            >>> sample_pytorch_dataset.config.padding_side = "left"
+            >>> sample_pytorch_dataset.collate(batch)
+            MEDSTorchBatch(code=tensor([[[ 0,  0,  5],
+                                         [ 3, 10, 11],
+                                         [ 0,  0,  4]],
+            <BLANKLINE>
+                                        [[ 0,  0,  5],
+                                         [ 2, 10, 11],
+                                         [ 0,  0,  4]]]),
+                           numeric_value=tensor([[[ 0.0000,  0.0000,  0.0000],
+                                                  [ 0.0000, -1.4475, -0.3405],
+                                                  [ 0.0000,  0.0000,  0.0000]],
+            <BLANKLINE>
+                                                 [[ 0.0000,  0.0000,  0.0000],
+                                                  [ 0.0000,  3.0047,  0.8491],
+                                                  [ 0.0000,  0.0000,  0.0000]]]),
+                           numeric_value_mask=tensor([[[ True,  True, False],
+                                                       [False,  True,  True],
+                                                       [ True,  True, False]],
+            <BLANKLINE>
+                                                      [[ True,  True, False],
+                                                       [False,  True,  True],
+                                                       [ True,  True, False]]]),
+                           time_delta_days=tensor([[0.0000e+00, 1.1766e+04, 9.7870e-02],
+                                                   [0.0000e+00, 1.2367e+04, 4.6424e-02]]),
+                           event_mask=tensor([[True, True, True],
+                                              [True, True, True]]),
+                           static_code=None,
+                           static_numeric_value=None,
+                           static_numeric_value_mask=None,
+                           boolean_value=None)
         """
 
-        data = JointNestedRaggedTensorDict.vstack([item["dynamic"] for item in batch]).to_dense()
+        data = JointNestedRaggedTensorDict.vstack([item["dynamic"] for item in batch])
+        data = data.to_dense(padding_side=self.config.padding_side)
         tensorized = {k: torch.as_tensor(v) for k, v in data.items()}
 
         out = {}

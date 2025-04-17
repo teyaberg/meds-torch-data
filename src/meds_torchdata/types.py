@@ -10,6 +10,18 @@ import torch
 from .utils import SEED_OR_RNG, resolve_rng
 
 
+class PaddingSide(StrEnum):
+    """An enumeration of the possible padding sides for the dataset (either left or right).
+
+    Attributes:
+        LEFT: Pad the sequence on the left side. This is useful for autoregressive generation.
+        RIGHT: Pad the sequence on the right side. This is more typical and used in general model training.
+    """
+
+    LEFT = "left"
+    RIGHT = "right"
+
+
 class SubsequenceSamplingStrategy(StrEnum):
     """An enumeration of the possible subsequence sampling strategies for the dataset.
 

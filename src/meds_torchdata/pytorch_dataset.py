@@ -49,9 +49,6 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
     of the class, such as error validation and specific methods.
 
     Examples:
-
-    If you load the dataset from real data, things work fine.
-
         >>> cfg = MEDSTorchDataConfig(tensorized_cohort_dir=tensorized_MEDS_dataset, max_seq_len=5)
         >>> pyd = MEDSPytorchDataset(cfg, split="train")
         >>> len(pyd)

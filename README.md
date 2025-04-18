@@ -839,6 +839,33 @@ The `MTD_preprocess` command runs the following pre-processing stages:
 >   ensures that the data is modified as you desire in an efficient, transparent way and that the tensorization
 >   step works with data in its final format to avoid any issues with discrepancies in code vocabulary, etc.
 
+### Advanced features
+
+You can also use this package natively with Hydra in modeling applications by adding the
+`meds_torchdata.MEDSTorchDataConfig` to the Hydra config store. This will allow you to use it as though it
+were a fully defined `.yaml` configuration file in your application configuration. To do this, you simply need
+to run `MEDSTorchDataConfig.add_to_config_store()` in your application, specifying the group name in which you
+plan to use the config in your application.
+
+E.g., if you have a config file like this:
+
+```yaml
+dataset:
+  _target_: meds_torchdata.MEDSPytorchDataset
+  config: MEDSTorchDataConfig
+```
+
+Then in your main application, prior to `@hydra.main`, you can run:
+
+```python
+from meds_torchdata.config import MEDSTorchDataConfig
+
+MEDSTorchDataConfig.add_to_config_store("dataset/config")
+```
+
+This will add the `MEDSTorchDataConfig` to the Hydra config store in the nested `dataset/config` group, which
+will allow you to override its parameters from the command line and instantiate it into object form natively.
+
 ### Testing Models that Use this Package
 
 If you use this package to build your model, we also expose some pytest fixtures that can be used to test your

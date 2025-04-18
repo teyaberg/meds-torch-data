@@ -8,6 +8,7 @@ import pytest
 from meds_testing_helpers.dataset import MEDSDataset
 
 from meds_torchdata import MEDSPytorchDataset, MEDSTorchDataConfig
+from meds_torchdata.extensions import _HAS_LIGHTNING
 
 
 @pytest.fixture(scope="session")
@@ -50,19 +51,19 @@ def tensorized_MEDS_dataset_with_task(
 
 
 @pytest.fixture(scope="session")
-def sample_pytorch_dataset(tensorized_MEDS_dataset: Path) -> MEDSPytorchDataset:
+def sample_dataset_config(tensorized_MEDS_dataset: Path) -> MEDSTorchDataConfig:
     config = MEDSTorchDataConfig(
         tensorized_cohort_dir=tensorized_MEDS_dataset,
         max_seq_len=10,
     )
 
-    return MEDSPytorchDataset(config, split="train")
+    return config
 
 
 @pytest.fixture(scope="session")
-def sample_pytorch_dataset_with_task(
+def sample_dataset_config_with_task(
     tensorized_MEDS_dataset_with_task: tuple[Path, Path, str],
-) -> MEDSPytorchDataset:
+) -> MEDSTorchDataConfig:
     cohort_dir, tasks_dir, task_name = tensorized_MEDS_dataset_with_task
 
     config = MEDSTorchDataConfig(
@@ -72,4 +73,30 @@ def sample_pytorch_dataset_with_task(
         seq_sampling_strategy="to_end",
     )
 
-    return MEDSPytorchDataset(config, split="train")
+    return config
+
+
+@pytest.fixture(scope="session")
+def sample_pytorch_dataset(sample_dataset_config: MEDSTorchDataConfig) -> MEDSPytorchDataset:
+    return MEDSPytorchDataset(sample_dataset_config, split="train")
+
+
+@pytest.fixture(scope="session")
+def sample_pytorch_dataset_with_task(
+    sample_dataset_config_with_task: MEDSTorchDataConfig,
+) -> MEDSPytorchDataset:
+    return MEDSPytorchDataset(sample_dataset_config_with_task, split="train")
+
+
+if _HAS_LIGHTNING:
+    from meds_torchdata.extensions import Datamodule
+
+    @pytest.fixture(scope="session")
+    def sample_lightning_datamodule(sample_dataset_config: MEDSTorchDataConfig) -> Datamodule:
+        return Datamodule(config=sample_dataset_config, batch_size=2)
+
+    @pytest.fixture(scope="session")
+    def sample_lightning_datamodule_with_task(
+        sample_dataset_config_with_task: MEDSTorchDataConfig,
+    ) -> Datamodule:
+        return Datamodule(config=sample_dataset_config_with_task, batch_size=2)

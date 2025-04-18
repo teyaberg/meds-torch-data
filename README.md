@@ -196,8 +196,9 @@ File path parameters include:
 - `tensorized_cohort_dir`: The directory containing the tensorized data.
 - `task_labels_dir`: The directory containing the task labels files.
 
-Let's start by building a configuration object for this data and inspect some of its file-path related
-properties and helpers:
+It also provides a convenient property to get the vocab size for the dataset, given by the vocab indices in
+the tensorized metadata. Let's start by building a configuration object for this data and inspect some of its
+file-path related properties and helpers:
 
 ```python
 >>> from meds_torchdata import MEDSTorchDataConfig
@@ -215,6 +216,8 @@ PosixPath('/tmp/tmp.../tokenization/schemas')
 None
 >>> print(cfg.task_labels_fps)
 None
+>>> print(cfg.vocab_size)
+12
 
 ```
 
@@ -835,6 +838,33 @@ The `MTD_preprocess` command runs the following pre-processing stages:
 >   You should perform these steps on the raw MEDS data _prior to running the tensorization command_. This
 >   ensures that the data is modified as you desire in an efficient, transparent way and that the tensorization
 >   step works with data in its final format to avoid any issues with discrepancies in code vocabulary, etc.
+
+### Advanced features
+
+You can also use this package natively with Hydra in modeling applications by adding the
+`meds_torchdata.MEDSTorchDataConfig` to the Hydra config store. This will allow you to use it as though it
+were a fully defined `.yaml` configuration file in your application configuration. To do this, you simply need
+to run `MEDSTorchDataConfig.add_to_config_store()` in your application, specifying the group name in which you
+plan to use the config in your application.
+
+E.g., if you have a config file like this:
+
+```yaml
+dataset:
+  _target_: meds_torchdata.MEDSPytorchDataset
+  config: MEDSTorchDataConfig
+```
+
+Then in your main application, prior to `@hydra.main`, you can run:
+
+```python
+from meds_torchdata.config import MEDSTorchDataConfig
+
+MEDSTorchDataConfig.add_to_config_store("dataset/config")
+```
+
+This will add the `MEDSTorchDataConfig` to the Hydra config store in the nested `dataset/config` group, which
+will allow you to override its parameters from the command line and instantiate it into object form natively.
 
 ### Testing Models that Use this Package
 

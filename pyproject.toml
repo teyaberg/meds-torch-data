@@ -29,6 +29,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pre-commit<4", "ruff"]
 tests = ["pytest-cov[toml]"]
+lightning = ["lightning~=2.5.1"]
 benchmarks = ["ml-mixins[memtrackable]>=0.2", "rootutils"]
 docs = [
   "mkdocs==1.6.1", "mkdocs-material==9.6.7", "mkdocstrings[python,shell]==0.28.2", "mkdocs-gen-files==0.5.0",
@@ -47,7 +48,8 @@ addopts = [
   "--doctest-glob=*.md",
 ]
 markers = [
-  "parallelized: mark test as parallelized, requiring hydra-joblib-launcher",
+  "parallelized: mark test as parallelized, requiring the optional dependency 'hydra-joblib-launcher'",
+  "lightning: mark test as requiring the optional dependency 'lightning'",
 ]
 doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS"]
 
@@ -88,4 +90,4 @@ select = [
 "test_*" = ["DTZ001"]  # Ignore datetimez in test files
 
 [tool.ruff.lint.pep8-naming]
-extend-ignore-names = ["*MEDS*", "*NRT*", "_SE_*", "_SEM_*", "_SM_*", "D"]
+extend-ignore-names = ["*MEDS*", "*NRT*", "_SE_*", "_SEM_*", "_SM_*", "D", "L"]

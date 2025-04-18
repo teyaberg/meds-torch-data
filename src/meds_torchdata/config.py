@@ -7,12 +7,16 @@ enumeration objects for categorical options and a general DataClass configuratio
 import logging
 from collections.abc import Generator
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
 import numpy as np
+import polars as pl
+from hydra.core.config_store import ConfigStore
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
+from omegaconf import open_dict
 
-from .types import BatchMode, StaticInclusionMode, SubsequenceSamplingStrategy
+from .types import BatchMode, PaddingSide, StaticInclusionMode, SubsequenceSamplingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +113,7 @@ class MEDSTorchDataConfig:
     # Sequence lengths and padding
     max_seq_len: int
     seq_sampling_strategy: SubsequenceSamplingStrategy = SubsequenceSamplingStrategy.RANDOM
+    padding_side: PaddingSide = PaddingSide.RIGHT
 
     # Static Data
     static_inclusion_mode: StaticInclusionMode = StaticInclusionMode.INCLUDE
@@ -118,6 +123,126 @@ class MEDSTorchDataConfig:
 
     # Output Shape & Masking
     batch_mode: BatchMode = BatchMode.SM
+
+    @classmethod
+    def add_to_config_store(cls, group: str | None = None):
+        """Adds this class to the Hydra config store such that instantiation will create it natively.
+
+        Args:
+            group: The group name to register this class under.
+
+        Examples:
+            >>> MEDSTorchDataConfig.add_to_config_store()
+            >>> cs = ConfigStore.instance()
+            >>> cs.repo["MEDSTorchDataConfig.yaml"]
+            ConfigNode(name='MEDSTorchDataConfig.yaml',
+                       node={'tensorized_cohort_dir': '???',
+                             'max_seq_len': '???',
+                             'seq_sampling_strategy': <SubsequenceSamplingStrategy.RANDOM: 'random'>,
+                             'padding_side': <PaddingSide.RIGHT: 'right'>,
+                             'static_inclusion_mode': <StaticInclusionMode.INCLUDE: 'include'>,
+                             'task_labels_dir': None,
+                             'batch_mode': <BatchMode.SM: 'SM'>,
+                             '_target_': 'meds_torchdata.config.MEDSTorchDataConfig'},
+                       group=None,
+                       package=None,
+                       provider=None)
+
+        With the `_target_` key set to the class name, this allows for instantiation of the class via Hydra:
+
+            >>> from omegaconf import DictConfig
+            >>> from hydra import compose, initialize
+            >>> with initialize(version_base=None, config_path=".", job_name="test"):
+            ...     cfg = compose(
+            ...         config_name="MEDSTorchDataConfig.yaml",
+            ...         overrides=[f"tensorized_cohort_dir={tensorized_MEDS_dataset!s}", "max_seq_len=10"]
+            ...     )
+            >>> cfg
+            {'tensorized_cohort_dir': '/tmp/tmp...',
+             'max_seq_len': 10,
+             'seq_sampling_strategy': <SubsequenceSamplingStrategy.RANDOM: 'random'>,
+             'padding_side': <PaddingSide.RIGHT: 'right'>,
+             'static_inclusion_mode': <StaticInclusionMode.INCLUDE: 'include'>,
+             'task_labels_dir': None,
+             'batch_mode': <BatchMode.SM: 'SM'>,
+             '_target_': 'meds_torchdata.config.MEDSTorchDataConfig'}
+            >>> from hydra.utils import instantiate
+            >>> instantiate(cfg)
+            MEDSTorchDataConfig(tensorized_cohort_dir=PosixPath('/tmp/tmp...'),
+                                max_seq_len=10,
+                                seq_sampling_strategy=<SubsequenceSamplingStrategy.RANDOM: 'random'>,
+                                padding_side=<PaddingSide.RIGHT: 'right'>,
+                                static_inclusion_mode=<StaticInclusionMode.INCLUDE: 'include'>,
+                                task_labels_dir=None,
+                                batch_mode=<BatchMode.SM: 'SM'>)
+
+        Note that Hydra's CLI parameters with structured configs recognize that the `StrEnum` classes are
+        enums, but fails to recognize that they accept lowercased names as the names of the class members are
+        all upper-case. This means that you need to use upper case names for enum variables if you overwrite a
+        parameter in the CLI for this config once it is added to the config store.
+
+            >>> with initialize(version_base=None, config_path=".", job_name="test"):
+            ...     cfg = compose(
+            ...         config_name="MEDSTorchDataConfig.yaml",
+            ...         overrides=[
+            ...             f"tensorized_cohort_dir={tensorized_MEDS_dataset!s}",
+            ...             "max_seq_len=10",
+            ...             "seq_sampling_strategy=to_end",
+            ...         ]
+            ...     )
+            Traceback (most recent call last):
+                ...
+            hydra.errors.ConfigCompositionException: Error merging override seq_sampling_strategy=to_end
+            >>> with initialize(version_base=None, config_path=".", job_name="test"):
+            ...     cfg = compose(
+            ...         config_name="MEDSTorchDataConfig.yaml",
+            ...         overrides=[
+            ...             f"tensorized_cohort_dir={tensorized_MEDS_dataset!s}",
+            ...             "max_seq_len=10",
+            ...             "seq_sampling_strategy=TO_END",
+            ...         ]
+            ...     )
+            >>> instantiate(cfg)
+            MEDSTorchDataConfig(tensorized_cohort_dir=PosixPath('/tmp/tmp...'),
+                                max_seq_len=10,
+                                seq_sampling_strategy=<SubsequenceSamplingStrategy.TO_END: 'to_end'>,
+                                padding_side=<PaddingSide.RIGHT: 'right'>,
+                                static_inclusion_mode=<StaticInclusionMode.INCLUDE: 'include'>,
+                                task_labels_dir=None,
+                                batch_mode=<BatchMode.SM: 'SM'>)
+
+        You can also add the config to a group
+
+            >>> MEDSTorchDataConfig.add_to_config_store("my_group/my_subgroup")
+            >>> cs = ConfigStore.instance()
+            >>> cs.repo["my_group"]["my_subgroup"]["MEDSTorchDataConfig.yaml"]
+            ConfigNode(name='MEDSTorchDataConfig.yaml',
+                       node={'tensorized_cohort_dir': '???',
+                             'max_seq_len': '???',
+                             'seq_sampling_strategy': <SubsequenceSamplingStrategy.RANDOM: 'random'>,
+                             'padding_side': <PaddingSide.RIGHT: 'right'>,
+                             'static_inclusion_mode': <StaticInclusionMode.INCLUDE: 'include'>,
+                             'task_labels_dir': None,
+                             'batch_mode': <BatchMode.SM: 'SM'>,
+                             '_target_': 'meds_torchdata.config.MEDSTorchDataConfig'},
+                       group='my_group/my_subgroup',
+                       package=None,
+                       provider=None)
+        """
+
+        # 1. Register it
+        cs = ConfigStore.instance()
+        cs.store(name=cls.__name__, group=group, node=cls)
+
+        # 2. Add the target
+        node = cs.repo
+        if group is not None:
+            for key in group.split("/"):
+                node = node[key]
+
+        node = node[f"{cls.__name__}.yaml"].node
+        with open_dict(node):
+            node["_target_"] = f"{cls.__module__}.{cls.__name__}"
 
     def __post_init__(self):
         self.tensorized_cohort_dir = Path(self.tensorized_cohort_dir)
@@ -158,8 +283,45 @@ class MEDSTorchDataConfig:
                 )
 
     @property
+    def code_metadata_fp(self) -> Path:
+        """Return the code metadata file for this cohort.
+
+        The path need not exist to be returned.
+
+        Examples:
+            >>> with tempfile.TemporaryDirectory() as tmpdir:
+            ...     cfg = MEDSTorchDataConfig(Path(tmpdir), max_seq_len=10)
+            >>> cfg.code_metadata_fp
+            PosixPath('/tmp/tmp.../metadata/codes.parquet')
+        """
+        return self.tensorized_cohort_dir / "metadata" / "codes.parquet"
+
+    @cached_property
+    def vocab_size(self) -> int:
+        """Reads the code indices from the metadata file and returns the size of the vocabulary.
+
+        The vocabulary size is the maximum index in the code metadata file plus one. This is a cached property
+        to avoid reading the file multiple times.
+
+        Examples:
+            >>> df = pl.DataFrame({"code/vocab_index": [0, 1, 3]})
+            >>> with tempfile.TemporaryDirectory() as tmpdir:
+            ...     tensorized_root = Path(tmpdir)
+            ...     metadata_fp = tensorized_root / "metadata" / "codes.parquet"
+            ...     metadata_fp.parent.mkdir(parents=True)
+            ...     df.write_parquet(metadata_fp)
+            ...     cfg = MEDSTorchDataConfig(tensorized_root, max_seq_len=10)
+            ...     print(cfg.vocab_size)
+            4
+        """
+        df = pl.read_parquet(self.code_metadata_fp, columns=["code/vocab_index"], use_pyarrow=True)
+        return df.select(pl.col("code/vocab_index")).max().item() + 1
+
+    @property
     def schema_dir(self) -> Path:
-        """Return the schema directory for the tensorized cohort. The path need not exist to be returned.
+        """Return the schema directory for the tensorized cohort.
+
+        The path need not exist to be returned.
 
         Examples:
             >>> with tempfile.TemporaryDirectory() as tmpdir:

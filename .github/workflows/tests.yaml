@@ -32,7 +32,7 @@ jobs:
       #----------------------------------------------
       - name: Run tests
         run: |
-          pytest -v --cov=src -m "not parallelized and not lightning" --ignore="benchmark" --ignore="extensions"
+          pytest -v --cov=src -m "not parallelized and not lightning" --ignore="benchmark" --ignore="src/meds_torchdata/extensions"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4.0.1

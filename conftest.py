@@ -8,10 +8,17 @@ from typing import Any
 
 import pytest
 
+import meds_torchdata.extensions
 import meds_torchdata.pytest_plugin
 from meds_torchdata import MEDSPytorchDataset, MEDSTorchDataConfig
 
+importlib.reload(meds_torchdata.extensions)
 importlib.reload(meds_torchdata.pytest_plugin)
+
+if meds_torchdata.extensions._HAS_LIGHTNING:
+    import meds_torchdata.extensions.lightning
+
+    importlib.reload(meds_torchdata.extensions.lightning)
 
 
 @pytest.fixture(scope="session", autouse=True)

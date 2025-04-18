@@ -32,12 +32,21 @@ jobs:
       #----------------------------------------------
       - name: Run tests
         run: |
-          pytest -v --cov=src -m "not parallelized" --ignore="benchmark"
+          pytest -v --cov=src -m "not parallelized and not lightning" --ignore="benchmark" --ignore="extensions"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Install lightning
+        run: |
+          pip install -e .[lightning]
+
+      - name: Run tests with lightning
+        run: |
+          pytest -v --cov=src src/meds_torchdata/extensions/lightning.py
+          pytest -v --cov=src tests/ -m "lightning"
 
       - name: Install joblib
         run: |

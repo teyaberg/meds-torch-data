@@ -125,26 +125,120 @@ class MEDSTorchDataConfig:
     batch_mode: BatchMode = BatchMode.SM
 
     @classmethod
-    def add_to_config_store(cls, group: str):
+    def add_to_config_store(cls, group: str | None = None):
         """Adds this class to the Hydra config store such that instantiation will create it natively.
 
         Args:
             group: The group name to register this class under.
 
         Examples:
+            >>> MEDSTorchDataConfig.add_to_config_store()
+            >>> cs = ConfigStore.instance()
+            >>> cs.repo["MEDSTorchDataConfig.yaml"]
+            ConfigNode(name='MEDSTorchDataConfig.yaml',
+                       node={'tensorized_cohort_dir': '???',
+                             'max_seq_len': '???',
+                             'seq_sampling_strategy': <SubsequenceSamplingStrategy.RANDOM: 'random'>,
+                             'padding_side': <PaddingSide.RIGHT: 'right'>,
+                             'static_inclusion_mode': <StaticInclusionMode.INCLUDE: 'include'>,
+                             'task_labels_dir': None,
+                             'batch_mode': <BatchMode.SM: 'SM'>,
+                             '_target_': 'meds_torchdata.config.MEDSTorchDataConfig'},
+                       group=None,
+                       package=None,
+                       provider=None)
+
+        With the `_target_` key set to the class name, this allows for instantiation of the class via Hydra:
+
+            >>> from omegaconf import DictConfig
+            >>> from hydra import compose, initialize
+            >>> with initialize(version_base=None, config_path=".", job_name="test"):
+            ...     cfg = compose(
+            ...         config_name="MEDSTorchDataConfig.yaml",
+            ...         overrides=[f"tensorized_cohort_dir={tensorized_MEDS_dataset!s}", "max_seq_len=10"]
+            ...     )
+            >>> cfg
+            {'tensorized_cohort_dir': '/tmp/tmp...',
+             'max_seq_len': 10,
+             'seq_sampling_strategy': <SubsequenceSamplingStrategy.RANDOM: 'random'>,
+             'padding_side': <PaddingSide.RIGHT: 'right'>,
+             'static_inclusion_mode': <StaticInclusionMode.INCLUDE: 'include'>,
+             'task_labels_dir': None,
+             'batch_mode': <BatchMode.SM: 'SM'>,
+             '_target_': 'meds_torchdata.config.MEDSTorchDataConfig'}
+            >>> from hydra.utils import instantiate
+            >>> instantiate(cfg)
+            MEDSTorchDataConfig(tensorized_cohort_dir=PosixPath('/tmp/tmp...'),
+                                max_seq_len=10,
+                                seq_sampling_strategy=<SubsequenceSamplingStrategy.RANDOM: 'random'>,
+                                padding_side=<PaddingSide.RIGHT: 'right'>,
+                                static_inclusion_mode=<StaticInclusionMode.INCLUDE: 'include'>,
+                                task_labels_dir=None,
+                                batch_mode=<BatchMode.SM: 'SM'>)
+
+        Note that Hydra's CLI parameters with structured configs recognize that the `StrEnum` classes are
+        enums, but fails to recognize that they accept lowercased names as the names of the class members are
+        all upper-case. This means that you need to use upper case names for enum variables if you overwrite a
+        parameter in the CLI for this config once it is added to the config store.
+
+            >>> with initialize(version_base=None, config_path=".", job_name="test"):
+            ...     cfg = compose(
+            ...         config_name="MEDSTorchDataConfig.yaml",
+            ...         overrides=[
+            ...             f"tensorized_cohort_dir={tensorized_MEDS_dataset!s}",
+            ...             "max_seq_len=10",
+            ...             "seq_sampling_strategy=to_end",
+            ...         ]
+            ...     )
+            Traceback (most recent call last):
+                ...
+            hydra.errors.ConfigCompositionException: Error merging override seq_sampling_strategy=to_end
+            >>> with initialize(version_base=None, config_path=".", job_name="test"):
+            ...     cfg = compose(
+            ...         config_name="MEDSTorchDataConfig.yaml",
+            ...         overrides=[
+            ...             f"tensorized_cohort_dir={tensorized_MEDS_dataset!s}",
+            ...             "max_seq_len=10",
+            ...             "seq_sampling_strategy=TO_END",
+            ...         ]
+            ...     )
+            >>> instantiate(cfg)
+            MEDSTorchDataConfig(tensorized_cohort_dir=PosixPath('/tmp/tmp...'),
+                                max_seq_len=10,
+                                seq_sampling_strategy=<SubsequenceSamplingStrategy.TO_END: 'to_end'>,
+                                padding_side=<PaddingSide.RIGHT: 'right'>,
+                                static_inclusion_mode=<StaticInclusionMode.INCLUDE: 'include'>,
+                                task_labels_dir=None,
+                                batch_mode=<BatchMode.SM: 'SM'>)
+
+        You can also add the config to a group
+
             >>> MEDSTorchDataConfig.add_to_config_store("my_group/my_subgroup")
             >>> cs = ConfigStore.instance()
             >>> cs.repo["my_group"]["my_subgroup"]["MEDSTorchDataConfig.yaml"]
+            ConfigNode(name='MEDSTorchDataConfig.yaml',
+                       node={'tensorized_cohort_dir': '???',
+                             'max_seq_len': '???',
+                             'seq_sampling_strategy': <SubsequenceSamplingStrategy.RANDOM: 'random'>,
+                             'padding_side': <PaddingSide.RIGHT: 'right'>,
+                             'static_inclusion_mode': <StaticInclusionMode.INCLUDE: 'include'>,
+                             'task_labels_dir': None,
+                             'batch_mode': <BatchMode.SM: 'SM'>,
+                             '_target_': 'meds_torchdata.config.MEDSTorchDataConfig'},
+                       group='my_group/my_subgroup',
+                       package=None,
+                       provider=None)
         """
 
         # 1. Register it
         cs = ConfigStore.instance()
-        cs.store(group=group, name=cls.__name__, node=cls)
+        cs.store(name=cls.__name__, group=group, node=cls)
 
         # 2. Add the target
         node = cs.repo
-        for key in group.split("/"):
-            node = node[key]
+        if group is not None:
+            for key in group.split("/"):
+                node = node[key]
 
         node = node[f"{cls.__name__}.yaml"].node
         with open_dict(node):

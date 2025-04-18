@@ -27,6 +27,18 @@ class Datamodule(L.LightningDataModule):
 
     Examples:
         >>> D = Datamodule(config=sample_dataset_config, batch_size=2)
+        >>> isinstance(D.train_dataset, MEDSPytorchDataset)
+        True
+        >>> D.train_dataset.split
+        'train'
+        >>> isinstance(D.val_dataset, MEDSPytorchDataset)
+        True
+        >>> D.val_dataset.split
+        'tuning'
+        >>> isinstance(D.test_dataset, MEDSPytorchDataset)
+        True
+        >>> D.test_dataset.split
+        'held_out'
 
     After construction, we can access dataloaders for training, validation, and testing. The train dataloader
     shuffles so doesn't return stable outputs, but the others do not shuffle.

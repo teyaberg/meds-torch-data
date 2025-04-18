@@ -12,7 +12,9 @@ from pathlib import Path
 
 import numpy as np
 import polars as pl
+from hydra.core.config_store import ConfigStore
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
+from omegaconf import open_dict
 
 from .types import BatchMode, PaddingSide, StaticInclusionMode, SubsequenceSamplingStrategy
 
@@ -121,6 +123,32 @@ class MEDSTorchDataConfig:
 
     # Output Shape & Masking
     batch_mode: BatchMode = BatchMode.SM
+
+    @classmethod
+    def add_to_config_store(cls, group: str):
+        """Adds this class to the Hydra config store such that instantiation will create it natively.
+
+        Args:
+            group: The group name to register this class under.
+
+        Examples:
+            >>> MEDSTorchDataConfig.add_to_config_store("my_group/my_subgroup")
+            >>> cs = ConfigStore.instance()
+            >>> cs.repo["my_group"]["my_subgroup"]["MEDSTorchDataConfig.yaml"]
+        """
+
+        # 1. Register it
+        cs = ConfigStore.instance()
+        cs.store(group=group, name=cls.__name__, node=cls)
+
+        # 2. Add the target
+        node = cs.repo
+        for key in group.split("/"):
+            node = node[key]
+
+        node = node[f"{cls.__name__}.yaml"].node
+        with open_dict(node):
+            node["_target_"] = f"{cls.__module__}.{cls.__name__}"
 
     def __post_init__(self):
         self.tensorized_cohort_dir = Path(self.tensorized_cohort_dir)

@@ -43,9 +43,18 @@ jobs:
         run: |
           pip install -e .[lightning]
 
-      - name: Run tests with lightning
+      - name: Run doctests with lightning
         run: |
-          pytest -v --cov=src src/meds_torchdata/extensions/lightning.py tests/ -m "lightning"
+          pytest -v --cov=src src/meds_torchdata/extensions/lightning.py
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Run test/* tests with lightning
+        run: |
+          pytest -v --cov=src tests/ -m "lightning and not parallelized"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4.0.1
@@ -58,7 +67,7 @@ jobs:
 
       - name: Run tests with joblib
         run: |
-          pytest -v --cov=src tests/ -m "parallelized"
+          pytest -v --cov=src tests/ -m "parallelized and not lightning"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4.0.1

@@ -6,4 +6,4 @@ except ImportError:
     _HAS_LIGHTNING = False
 
 if _HAS_LIGHTNING:
-    from .lightning import Datamodule
+    from .lightning_datamodule import Datamodule

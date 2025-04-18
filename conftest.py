@@ -16,9 +16,9 @@ importlib.reload(meds_torchdata.extensions)
 importlib.reload(meds_torchdata.pytest_plugin)
 
 if meds_torchdata.extensions._HAS_LIGHTNING:
-    import meds_torchdata.extensions.lightning
+    import meds_torchdata.extensions.lightning_datamodule
 
-    importlib.reload(meds_torchdata.extensions.lightning)
+    importlib.reload(meds_torchdata.extensions.lightning_datamodule)
 
 
 @pytest.fixture(scope="session", autouse=True)

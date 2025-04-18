@@ -45,7 +45,7 @@ jobs:
 
       - name: Run doctests with lightning
         run: |
-          pytest -v --cov=src src/meds_torchdata/extensions/lightning.py
+          pytest -v --cov=src src/meds_torchdata/extensions/lightning_datamodule.py
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4.0.1

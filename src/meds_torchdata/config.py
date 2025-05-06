@@ -384,7 +384,7 @@ class MEDSTorchDataConfig:
                        PosixPath('/tmp/.../task_labels/nested/labels_2.parquet')]
         """
 
-        return list(self.task_labels_dir.rglob("*.parquet")) if self.task_labels_dir else None
+        return sorted(self.task_labels_dir.rglob("*.parquet")) if self.task_labels_dir else None
 
     def process_dynamic_data(
         self,

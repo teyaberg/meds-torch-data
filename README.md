@@ -273,7 +273,7 @@ format via the `schema_df`:
 >>> len(pyd)
 4
 >>> pyd.index
-[(68729, 3), (814703, 3), (239684, 6), (1195293, 8)]
+[(239684, 6), (1195293, 8), (68729, 3), (814703, 3)]
 >>> pyd.schema_df
 shape: (4, 2)
 ┌────────────┬─────────────────┐
@@ -281,10 +281,10 @@ shape: (4, 2)
 │ ---        ┆ ---             │
 │ i64        ┆ u32             │
 ╞════════════╪═════════════════╡
-│ 68729      ┆ 3               │
-│ 814703     ┆ 3               │
 │ 239684     ┆ 6               │
 │ 1195293    ┆ 8               │
+│ 68729      ┆ 3               │
+│ 814703     ┆ 3               │
 └────────────┴─────────────────┘
 
 ```
@@ -316,18 +316,6 @@ and show us the min and max such index, per-subject.
 ...         .filter((pl.col("event_idx") == 0) | (pl.col("event_idx") == pl.col("max_event_idx")))
 ...         .select("subject_id", "event_idx", "time")
 ...     )
->>> get_event_bounds(train_1)
-shape: (4, 3)
-┌────────────┬───────────┬─────────────────────┐
-│ subject_id ┆ event_idx ┆ time                │
-│ ---        ┆ ---       ┆ ---                 │
-│ i64        ┆ u32       ┆ datetime[μs]        │
-╞════════════╪═══════════╪═════════════════════╡
-│ 68729      ┆ 0         ┆ null                │
-│ 68729      ┆ 3         ┆ 2010-05-26 04:51:52 │
-│ 814703     ┆ 0         ┆ null                │
-│ 814703     ┆ 3         ┆ 2010-02-05 07:02:30 │
-└────────────┴───────────┴─────────────────────┘
 >>> get_event_bounds(train_0)
 shape: (4, 3)
 ┌────────────┬───────────┬─────────────────────┐
@@ -339,6 +327,18 @@ shape: (4, 3)
 │ 239684     ┆ 6         ┆ 2010-05-11 19:27:19 │
 │ 1195293    ┆ 0         ┆ null                │
 │ 1195293    ┆ 8         ┆ 2010-06-20 20:50:04 │
+└────────────┴───────────┴─────────────────────┘
+>>> get_event_bounds(train_1)
+shape: (4, 3)
+┌────────────┬───────────┬─────────────────────┐
+│ subject_id ┆ event_idx ┆ time                │
+│ ---        ┆ ---       ┆ ---                 │
+│ i64        ┆ u32       ┆ datetime[μs]        │
+╞════════════╪═══════════╪═════════════════════╡
+│ 68729      ┆ 0         ┆ null                │
+│ 68729      ┆ 3         ┆ 2010-05-26 04:51:52 │
+│ 814703     ┆ 0         ┆ null                │
+│ 814703     ┆ 3         ┆ 2010-02-05 07:02:30 │
 └────────────┴───────────┴─────────────────────┘
 
 ```
@@ -456,7 +456,7 @@ that we'll also reduce precision in the numeric values to make the output more r
 ...             pprint_dense(v.to_dense())
 ...         else:
 ...             print(v)
->>> print_element(pyd[0])
+>>> print_element(pyd[2])
 static_code (list):
 [8, 9]
 static_numeric_value (list):
@@ -498,11 +498,11 @@ False
 
 We can see in this case that the `boolean_value` field is included in the output, capturing the task label.
 
-The contents of `pyd[0]` are stable, because index element 0, `(68729, 0, 3)`, indicates the first subject has
+The contents of `pyd[2]` are stable, because index element 0, `(68729, 0, 3)`, indicates the first subject has
 a sequence of length 3 in the dataset and our `max_seq_len` is set to 5.
 
 ```python
->>> print_element(pyd[0])
+>>> print_element(pyd[2])
 static_code (list):
 [8, 9]
 static_numeric_value (list):
@@ -526,7 +526,7 @@ we'll get a random subset of length 5 each time. Here, so that this code is dete
 `_seeded_getitem`, an internal, seeded version of the `__getitem__` call.
 
 ```python
->>> print_element(pyd._seeded_getitem(3, seed=0))
+>>> print_element(pyd._seeded_getitem(1, seed=0))
 static_code (list):
 [6, 9]
 static_numeric_value (list):
@@ -540,7 +540,7 @@ numeric_value
 .
 time_delta_days
 [0.01888889 0.         0.0084838  0.         0.01167824]
->>> print_element(pyd._seeded_getitem(3, seed=1))
+>>> print_element(pyd._seeded_getitem(1, seed=1))
 static_code (list):
 [6, 9]
 static_numeric_value (list):
@@ -565,7 +565,7 @@ disappear:
 ...     tensorized_cohort_dir=tensorized_MEDS_dataset, max_seq_len=5, seq_sampling_strategy="from_start"
 ... )
 >>> pyd_from_start = MEDSPytorchDataset(cfg_from_start, split="train")
->>> print_element(pyd_from_start[3])
+>>> print_element(pyd_from_start[1])
 static_code (list):
 [6, 9]
 static_numeric_value (list):
@@ -579,7 +579,7 @@ numeric_value
 .
 time_delta_days
 [          nan 1.1688809e+04 0.0000000e+00 0.0000000e+00 1.1574074e-03]
->>> print_element(pyd_from_start[3])
+>>> print_element(pyd_from_start[1])
 static_code (list):
 [6, 9]
 static_numeric_value (list):
@@ -607,7 +607,8 @@ access shapes and validate data. See the
 on the batch class for more information.
 
 ```python
->>> print_element(next(iter(pyd.get_dataloader(batch_size=2))))
+>>> batches = [batch for batch in pyd.get_dataloader(batch_size=2)]
+>>> print_element(batches[1])
 code (Tensor):
 tensor([[ 5,  3, 10, 11,  4],
         [ 5,  2, 10, 11,  4]])
@@ -662,7 +663,7 @@ default output to be at a _measurement_ level, rather than an _event_ level, by 
 
 ```python
 >>> pyd.config.batch_mode = "SEM"
->>> print_element(pyd[0])
+>>> print_element(pyd[2])
 static_code (list):
 [8, 9]
 static_numeric_value (list):
@@ -687,7 +688,8 @@ numeric_value
 [[        nan  0.          0.        ]
  [        nan -1.4474752  -0.34049404]
  [        nan  0.          0.        ]]
->>> print_element(next(iter(pyd.get_dataloader(batch_size=2))))
+>>> batches = [batch for batch in pyd.get_dataloader(batch_size=2)]
+>>> print_element(batches[1])
 code (Tensor):
 tensor([[[ 5,  0,  0],
          [ 3, 10, 11],

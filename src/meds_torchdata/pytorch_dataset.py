@@ -54,7 +54,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         >>> len(pyd)
         4
         >>> pyd.index
-        [(68729, 3), (814703, 3), (239684, 6), (1195293, 8)]
+        [(239684, 6), (1195293, 8), (68729, 3), (814703, 3)]
 
     If you pass in a non-existent split, you'll get an error as it won't be able to find the schema files:
 
@@ -242,10 +242,10 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             │ ---        ┆ ---             │
             │ i64        ┆ u32             │
             ╞════════════╪═════════════════╡
-            │ 68729      ┆ 3               │
-            │ 814703     ┆ 3               │
             │ 239684     ┆ 6               │
             │ 1195293    ┆ 8               │
+            │ 68729      ┆ 3               │
+            │ 814703     ┆ 3               │
             └────────────┴─────────────────┘
             >>> sample_pytorch_dataset_with_task.schema_df
             shape: (13, 4)
@@ -490,7 +490,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             [method documentation](../types.py) for more information.
 
         Examples:
-            >>> batch = [sample_pytorch_dataset[0], sample_pytorch_dataset[1]]
+            >>> batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
             >>> sample_pytorch_dataset.collate(batch)
             MEDSTorchBatch(code=tensor([[ 5,  3, 10, 11,  4],
                                         [ 5,  2, 10, 11,  4]]),
@@ -544,51 +544,51 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.TO_END
             >>> batch = [sample_pytorch_dataset[i] for i in range(len(sample_pytorch_dataset))]
             >>> sample_pytorch_dataset.collate(batch)
-             MEDSTorchBatch(code=tensor([[ 0,  0,  0,  0,  0,  5,  3, 10, 11,  4],
-                                         [ 0,  0,  0,  0,  0,  5,  2, 10, 11,  4],
-                                         [ 1, 10, 11, 10, 11, 10, 11, 10, 11,  4],
-                                         [11, 10, 11, 10, 11, 10, 11, 10, 11,  4]]),
-                            numeric_value=tensor([[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,
-                                                    0.0000e+00, 0.0000e+00,  0.0000e+00, -1.4475e+00,
-                                                    -3.4049e-01,  0.0000e+00],
-                                                  [ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,
-                                                    0.0000e+00, 0.0000e+00,  0.0000e+00,  3.0047e+00,
-                                                    8.4908e-01,  0.0000e+00],
-                                                  [ 0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01,
+             MEDSTorchBatch(code=tensor([[ 1, 10, 11, 10, 11, 10, 11, 10, 11,  4],
+                                         [11, 10, 11, 10, 11, 10, 11, 10, 11,  4],
+                                         [ 0,  0,  0,  0,  0,  5,  3, 10, 11,  4],
+                                         [ 0,  0,  0,  0,  0,  5,  2, 10, 11,  4]]),
+                            numeric_value=tensor([[ 0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01,
                                                     -1.1680e+00, 1.3220e-03, -1.3749e+00, -4.0979e-02,
                                                     -1.5301e+00,  0.0000e+00],
                                                   [ 7.9736e-01,  3.3973e-01,  7.4564e-01, -4.6266e-02,
                                                     6.9392e-01, -3.0007e-01,  7.9736e-01, -3.1065e-01,
-                                                    1.0042e+00,  0.0000e+00]]),
-                            numeric_value_mask=tensor([[ True,  True,  True,  True,  True, False, False,
-                                                         True, True, False],
-                                                       [ True,  True,  True,  True,  True, False, False,
-                                                         True,  True, False],
-                                                       [False,  True,  True,  True, True,  True,  True,  True,
+                                                    1.0042e+00,  0.0000e+00],
+                                                  [ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,
+                                                    0.0000e+00, 0.0000e+00,  0.0000e+00, -1.4475e+00,
+                                                    -3.4049e-01,  0.0000e+00],
+                                                  [ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,
+                                                    0.0000e+00, 0.0000e+00,  0.0000e+00,  3.0047e+00,
+                                                    8.4908e-01,  0.0000e+00]]),
+                            numeric_value_mask=tensor([[False,  True,  True,  True, True,  True,  True,  True,
                                                          True, False],
                                                        [ True,  True,  True,  True,  True,  True,  True,
+                                                         True,  True, False],
+                                                       [ True,  True,  True,  True,  True, False, False,
+                                                         True, True, False],
+                                                       [ True,  True,  True,  True,  True, False, False,
                                                          True,  True, False]]),
-                            time_delta_days=tensor([[0.0000e+00, 0.0000e+00, 0.0000e+00, 0.0000e+00,
-                                                     0.0000e+00, 0.0000e+00, 1.1766e+04, 0.0000e+00,
-                                                     0.0000e+00, 9.7870e-02],
-                                                    [0.0000e+00, 0.0000e+00, 0.0000e+00, 0.0000e+00,
-                                                     0.0000e+00, 0.0000e+00, 1.2367e+04, 0.0000e+00,
-                                                     0.0000e+00, 4.6424e-02],
-                                                    [1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
+                            time_delta_days=tensor([[1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
                                                      0.0000e+00, 2.5544e-02, 0.0000e+00, 2.2025e-02,
                                                      0.0000e+00, 2.0845e-02],
                                                     [0.0000e+00, 1.3738e-02, 0.0000e+00, 1.8889e-02,
                                                      0.0000e+00, 8.4838e-03, 0.0000e+00, 1.1678e-02,
-                                                     0.0000e+00, 5.9144e-03]]),
+                                                     0.0000e+00, 5.9144e-03],
+                                                    [0.0000e+00, 0.0000e+00, 0.0000e+00, 0.0000e+00,
+                                                     0.0000e+00, 0.0000e+00, 1.1766e+04, 0.0000e+00,
+                                                     0.0000e+00, 9.7870e-02],
+                                                    [0.0000e+00, 0.0000e+00, 0.0000e+00, 0.0000e+00,
+                                                     0.0000e+00, 0.0000e+00, 1.2367e+04, 0.0000e+00,
+                                                     0.0000e+00, 4.6424e-02]]),
                             event_mask=None,
-                            static_code=tensor([[8, 9],
+                            static_code=tensor([[7, 9],
+                                                [6, 9],
                                                 [8, 9],
-                                                [7, 9],
-                                                [6, 9]]),
-                            static_numeric_value=tensor([[ 0.0000, -0.5438],
-                                                         [ 0.0000, -1.1012],
-                                                         [ 0.0000,  1.5770],
-                                                         [ 0.0000,  0.0680]]),
+                                                [8, 9]]),
+                            static_numeric_value=tensor([[ 0.0000,  1.5770],
+                                                         [ 0.0000,  0.0680],
+                                                         [ 0.0000, -0.5438],
+                                                         [ 0.0000, -1.1012]]),
                             static_numeric_value_mask=tensor([[False,  True],
                                                               [False,  True],
                                                               [False,  True],
@@ -597,51 +597,51 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             >>> sample_pytorch_dataset.config.padding_side = "right"
             >>> batch = [sample_pytorch_dataset[i] for i in range(len(sample_pytorch_dataset))]
             >>> sample_pytorch_dataset.collate(batch)
-            MEDSTorchBatch(code=tensor([[ 5,  3, 10, 11,  4,  0,  0,  0,  0,  0],
-                                        [ 5,  2, 10, 11,  4,  0,  0,  0,  0,  0],
-                                        [ 1, 10, 11, 10, 11, 10, 11, 10, 11,  4],
-                                        [11, 10, 11, 10, 11, 10, 11, 10, 11,  4]]),
-                           numeric_value=tensor([[ 0.0000e+00,  0.0000e+00, -1.4475e+00, -3.4049e-01,
-                                                   0.0000e+00, 0.0000e+00,  0.0000e+00,  0.0000e+00,
-                                                   0.0000e+00,  0.0000e+00],
-                                                 [ 0.0000e+00,  0.0000e+00, 3.0047e+00,  8.4908e-01,
-                                                   0.0000e+00, 0.0000e+00,  0.0000e+00,  0.0000e+00,
-                                                   0.0000e+00,  0.0000e+00],
-                                                 [ 0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01,
+            MEDSTorchBatch(code=tensor([[ 1, 10, 11, 10, 11, 10, 11, 10, 11,  4],
+                                        [11, 10, 11, 10, 11, 10, 11, 10, 11,  4],
+                                        [ 5,  3, 10, 11,  4,  0,  0,  0,  0,  0],
+                                        [ 5,  2, 10, 11,  4,  0,  0,  0,  0,  0]]),
+                           numeric_value=tensor([[ 0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01,
                                                   -1.1680e+00, 1.3220e-03, -1.3749e+00, -4.0979e-02,
                                                   -1.5301e+00,  0.0000e+00],
                                                  [ 7.9736e-01,  3.3973e-01,  7.4564e-01, -4.6266e-02,
                                                    6.9392e-01, -3.0007e-01,  7.9736e-01, -3.1065e-01,
-                                                   1.0042e+00,  0.0000e+00]]),
-                           numeric_value_mask=tensor([[False, False,  True,  True, False,  True,  True,  True,
-                                                        True,  True],
-                                                      [False, False,  True,  True, False,  True,  True,  True,
-                                                        True,  True],
-                                                      [False,  True,  True,  True,  True,  True, True,  True,
+                                                   1.0042e+00,  0.0000e+00],
+                                                 [ 0.0000e+00,  0.0000e+00, -1.4475e+00, -3.4049e-01,
+                                                   0.0000e+00, 0.0000e+00,  0.0000e+00,  0.0000e+00,
+                                                   0.0000e+00,  0.0000e+00],
+                                                 [ 0.0000e+00,  0.0000e+00, 3.0047e+00,  8.4908e-01,
+                                                   0.0000e+00, 0.0000e+00,  0.0000e+00,  0.0000e+00,
+                                                   0.0000e+00,  0.0000e+00]]),
+                           numeric_value_mask=tensor([[False,  True,  True,  True,  True,  True, True,  True,
                                                         True, False],
                                                       [ True,  True,  True,  True,  True,  True,  True,  True,
-                                                        True, False]]),
-                           time_delta_days=tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00,
-                                                    9.7870e-02, 0.0000e+00, 0.0000e+00, 0.0000e+00,
-                                                    0.0000e+00, 0.0000e+00],
-                                                   [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00,
-                                                    4.6424e-02, 0.0000e+00, 0.0000e+00, 0.0000e+00,
-                                                    0.0000e+00, 0.0000e+00],
-                                                   [1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
+                                                        True, False],
+                                                      [False, False,  True,  True, False,  True,  True,  True,
+                                                        True,  True],
+                                                      [False, False,  True,  True, False,  True,  True,  True,
+                                                        True,  True]]),
+                           time_delta_days=tensor([[1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03,
                                                     0.0000e+00, 2.5544e-02, 0.0000e+00, 2.2025e-02,
                                                     0.0000e+00, 2.0845e-02],
                                                    [0.0000e+00, 1.3738e-02, 0.0000e+00, 1.8889e-02,
                                                     0.0000e+00, 8.4838e-03, 0.0000e+00, 1.1678e-02,
-                                                    0.0000e+00, 5.9144e-03]]),
+                                                    0.0000e+00, 5.9144e-03],
+                                                   [0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00,
+                                                    9.7870e-02, 0.0000e+00, 0.0000e+00, 0.0000e+00,
+                                                    0.0000e+00, 0.0000e+00],
+                                                   [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00,
+                                                    4.6424e-02, 0.0000e+00, 0.0000e+00, 0.0000e+00,
+                                                    0.0000e+00, 0.0000e+00]]),
                            event_mask=None,
-                           static_code=tensor([[8, 9],
+                           static_code=tensor([[7, 9],
+                                               [6, 9],
                                                [8, 9],
-                                               [7, 9],
-                                               [6, 9]]),
-                           static_numeric_value=tensor([[ 0.0000, -0.5438],
-                                                        [ 0.0000, -1.1012],
-                                                        [ 0.0000,  1.5770],
-                                                        [ 0.0000,  0.0680]]),
+                                               [8, 9]]),
+                           static_numeric_value=tensor([[ 0.0000,  1.5770],
+                                                        [ 0.0000,  0.0680],
+                                                        [ 0.0000, -0.5438],
+                                                        [ 0.0000, -1.1012]]),
                            static_numeric_value_mask=tensor([[False,  True],
                                                              [False,  True],
                                                              [False,  True],
@@ -652,7 +652,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
             >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.OMIT
             >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.RANDOM
-            >>> batch = [sample_pytorch_dataset[0], sample_pytorch_dataset[1]]
+            >>> batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
             >>> sample_pytorch_dataset.collate(batch)
             MEDSTorchBatch(code=tensor([[ 5,  3, 10, 11,  4],
                                         [ 5,  2, 10, 11,  4]]),
@@ -673,7 +673,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             If the batch mode is SEM, the event mask will also be included and the output shape will differ:
 
             >>> sample_pytorch_dataset.config.batch_mode = "SEM"
-            >>> batch = [sample_pytorch_dataset[0], sample_pytorch_dataset[1]]
+            >>> batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
             >>> sample_pytorch_dataset.collate(batch)
             MEDSTorchBatch(code=tensor([[[ 5,  0,  0],
                                          [ 3, 10, 11],
@@ -787,7 +787,8 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.INCLUDE
             >>> sample_pytorch_dataset.config.batch_mode = "SM"
             >>> DL = sample_pytorch_dataset.get_dataloader(batch_size=2, shuffle=False)
-            >>> next(iter(DL))
+            >>> batches = [batch for batch in DL]
+            >>> batches[1]
             MEDSTorchBatch(code=tensor([[ 5,  3, 10, 11,  4],
                                         [ 5,  2, 10, 11,  4]]),
                            numeric_value=tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],

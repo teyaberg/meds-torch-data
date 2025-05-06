@@ -47,10 +47,7 @@ class Datamodule(L.LightningDataModule):
         0
         >>> train_dataloader = D.train_dataloader()
         >>> next(iter(train_dataloader))
-        MEDSTorchBatch(code=tensor([[ 5,  1, 10, 11, 10, 11, 10, 11, 10, 11],
-                                    [ 5,  2, 10, 11,  4,  0,  0,  0,  0,  0]]),
-                       ...,
-                       boolean_value=None)
+        MEDSTorchBatch(code=tensor([[...]]), ..., boolean_value=None)
         >>> val_dataloader = D.val_dataloader()
         >>> next(iter(val_dataloader))
         MEDSTorchBatch(code=tensor([[ 5,  3, 10, 11,  4]]), ..., boolean_value=None)

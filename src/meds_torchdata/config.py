@@ -350,11 +350,11 @@ class MEDSTorchDataConfig:
             ...     for shard, fp in cfg.schema_fps:
             ...         print(shard, str(fp.relative_to(tensorized_root)))
             shard_A tokenization/schemas/shard_A.parquet
-            shard_C/1 tokenization/schemas/shard_C/1.parquet
             shard_C/0 tokenization/schemas/shard_C/0.parquet
+            shard_C/1 tokenization/schemas/shard_C/1.parquet
         """
 
-        for schema_fp in self.schema_dir.rglob("*.parquet"):
+        for schema_fp in sorted(self.schema_dir.rglob("*.parquet")):
             shard = str(schema_fp.relative_to(self.schema_dir).with_suffix(""))
             yield shard, schema_fp
 

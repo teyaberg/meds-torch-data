@@ -4,7 +4,7 @@ from functools import cached_property
 import numpy as np
 import polars as pl
 import torch
-from meds import prediction_time_field, subject_id_field, time_field
+from meds import DataSchema, LabelSchema
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
 from .config import MEDSTorchDataConfig, StaticInclusionMode
@@ -132,24 +132,25 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         """
 
         end_idx_expr = (
-            (pl.col(time_field).search_sorted(pl.col(prediction_time_field), side="right"))
+            pl.col(DataSchema.time_name)
+            .search_sorted(pl.col(LabelSchema.prediction_time_name), side="right")
             .last()
             .alias(cls.END_IDX)
         )
 
         return (
-            label_df.join(schema_df, on=subject_id_field, how="inner", maintain_order="left")
+            label_df.join(schema_df, on=DataSchema.subject_id_name, how="inner", maintain_order="left")
             .with_row_index("_row")
-            .explode(time_field)
+            .explode(DataSchema.time_name)
             .group_by(
                 "_row",
-                subject_id_field,
-                prediction_time_field,
+                DataSchema.subject_id_name,
+                LabelSchema.prediction_time_name,
                 cls.LABEL_COL,
                 maintain_order=True,
             )
             .agg(end_idx_expr)
-            .select(subject_id_field, cls.END_IDX, prediction_time_field, cls.LABEL_COL)
+            .select(DataSchema.subject_id_name, cls.END_IDX, LabelSchema.prediction_time_name, cls.LABEL_COL)
         )
 
     def __init__(self, cfg: MEDSTorchDataConfig, split: str):
@@ -173,7 +174,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             )
 
             self.schema_dfs_by_shard[shard] = df
-            for i, subj in enumerate(df[subject_id_field]):
+            for i, subj in enumerate(df[DataSchema.subject_id_name]):
                 self.subj_locations[subj] = (shard, i)
 
         if not self.schema_dfs_by_shard:
@@ -183,7 +184,9 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 "Issue #79 for tracking this issue."
             )
 
-        self.index = list(zip(self.schema_df[subject_id_field], self.schema_df[self.END_IDX], strict=False))
+        self.index = list(
+            zip(self.schema_df[DataSchema.subject_id_name], self.schema_df[self.END_IDX], strict=False)
+        )
         self.labels = self.schema_df[self.LABEL_COL] if self.has_task else None
 
     @property
@@ -216,7 +219,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         if not self.has_task:
             return None
 
-        label_cols = [subject_id_field, prediction_time_field, self.LABEL_COL]
+        label_cols = [LabelSchema.subject_id_name, LabelSchema.prediction_time_name, self.LABEL_COL]
 
         logger.info(f"Reading tasks from {self.config.task_labels_fps}")
         return pl.concat(
@@ -266,14 +269,19 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         """
 
         base_df = pl.concat(
-            (df.select(subject_id_field, time_field) for df in self.schema_dfs_by_shard.values()),
+            (
+                df.select(DataSchema.subject_id_name, DataSchema.time_name)
+                for df in self.schema_dfs_by_shard.values()
+            ),
             how="vertical",
         )
 
         if self.has_task:
             return self.get_task_seq_bounds_and_labels(self.labels_df, base_df)
         else:
-            return base_df.select(subject_id_field, pl.col(time_field).list.len().alias(self.END_IDX))
+            return base_df.select(
+                DataSchema.subject_id_name, pl.col(DataSchema.time_name).list.len().alias(self.END_IDX)
+            )
 
     def __len__(self):
         """Returns the length of the dataset.

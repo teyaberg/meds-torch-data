@@ -11,7 +11,7 @@ from typing import Any
 
 import numpy as np
 import polars as pl
-from meds import subject_id_field, subject_splits_filepath
+from meds import subject_splits_filepath
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 from omegaconf import OmegaConf
 from polars.testing import assert_frame_equal
@@ -608,7 +608,7 @@ SHARDS = {
 
 SPLITS_DF = pl.DataFrame(
     {
-        subject_id_field: [239684, 1195293, 68729, 814703, 754281, 1500733],
+        "subject_id": [239684, 1195293, 68729, 814703, 754281, 1500733],
         "split": ["train", "train", "train", "train", "tuning", "held_out"],
     }
 )
@@ -693,7 +693,7 @@ def remap_inputs_for_transform(
     else:
         input_splits_as_df = defaultdict(list)
         for split_name, subject_ids in input_splits_map.items():
-            input_splits_as_df[subject_id_field].extend(subject_ids)
+            input_splits_as_df["subject_id"].extend(subject_ids)
             input_splits_as_df["split"].extend([split_name] * len(subject_ids))
 
         input_splits_df = pl.DataFrame(input_splits_as_df)

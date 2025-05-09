@@ -36,3 +36,18 @@ else:
 
         sample_batch = next(iter(sample_lightning_datamodule_with_task.train_dataloader()))
         assert sample_batch.boolean_value is not None
+
+    def test_lightning_datamodule_with_index(
+        sample_lightning_datamodule_with_index: Datamodule,
+    ):
+        assert isinstance(sample_lightning_datamodule_with_index, LightningDataModule)
+
+        try:
+            sample_lightning_datamodule_with_index.train_dataloader()
+            sample_lightning_datamodule_with_index.val_dataloader()
+            sample_lightning_datamodule_with_index.test_dataloader()
+        except Exception as e:
+            raise AssertionError(f"Failed to create dataloaders: {e}") from e
+
+        sample_batch = next(iter(sample_lightning_datamodule_with_index.train_dataloader()))
+        assert sample_batch.boolean_value is None

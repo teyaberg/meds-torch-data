@@ -899,8 +899,6 @@ class MEDSTorchBatch:
         out = [f"{header}:"]
         for tensor_n in tensors:
             tensor = getattr(self, tensor_n)
-            if tensor is None:
-                continue
 
             out.append(f"{BRANCH}{tensor_n} ({tensor.dtype}):")
             tensor_str = self.__str_tensor_val(tensor)

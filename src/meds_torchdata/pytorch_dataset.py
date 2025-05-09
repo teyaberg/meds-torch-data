@@ -66,7 +66,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         #79 for tracking this issue.
     """
 
-    LABEL_COL = "boolean_value"
+    LABEL_COL = LabelSchema.boolean_value_name
     END_IDX = "end_event_index"
 
     @classmethod

@@ -61,28 +61,41 @@ class Datamodule(L.LightningDataModule):
         >>> test_dataloader = D.test_dataloader()
         >>> next(iter(test_dataloader))
         MEDSTorchBatch(code=tensor([[ 5,  2, 10, 11, 10, 11, 10, 11,  4]]), ..., boolean_value=None)
+
+    You can also set the pin_memory flag to True, and it will be applied to the created dataloaders.
+
+        >>> D = Datamodule(config=sample_dataset_config, batch_size=1, pin_memory=True)
+        >>> D.shared_dataloader_kwargs
+        {'batch_size': 1, 'pin_memory': True}
+        >>> test_dataloader = D.test_dataloader()
+        >>> next(iter(test_dataloader))
+        MEDSTorchBatch(code=tensor([[ 5,  2, 10, 11, 10, 11, 10, 11,  4]]), ..., boolean_value=None)
     """
 
     config: MEDSTorchDataConfig
     batch_size: int
     num_workers: int | None
+    pin_memory: bool | None = None
 
     def __init__(
         self,
         config: MEDSTorchDataConfig,
         batch_size: int = 32,
         num_workers: int | None = None,
+        pin_memory: bool | None = None,
     ):
         super().__init__()
         self.config = config
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.pin_memory = pin_memory
 
     @property
     def shared_dataloader_kwargs(self) -> dict:
         out = {"batch_size": self.batch_size}
-        if self.num_workers is not None:
-            out["num_workers"] = self.num_workers
+        for param in {"num_workers", "pin_memory"}:
+            if getattr(self, param) is not None:
+                out[param] = getattr(self, param)
         return out
 
     @cached_property

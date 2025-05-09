@@ -849,7 +849,51 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             Padding side changes work in this mode as well.
 
             >>> sample_pytorch_dataset.config.padding_side = "left"
-            >>> sample_pytorch_dataset.collate(batch)
+            >>> print(sample_pytorch_dataset.collate(raw_batch))
+            MEDSTorchBatch:
+            │ Mode: Subject-Event-Measurement (SEM)
+            │ Static data? ✗
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length: 3
+            │ │ Event length: 3
+            │ │
+            │ │ Per-event data: (2, 3)
+            │ │ Per-measurement data: (2, 3, 3)
+            │
+            │ Data:
+            │ │ Event-level:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[0.00e+00, 1.18e+04, 9.79e-02],
+            │ │ │ │  [0.00e+00, 1.24e+04, 4.64e-02]]
+            │ │ │ event_mask (torch.bool):
+            │ │ │ │ [[True, True, True],
+            │ │ │ │  [True, True, True]]
+            │ │
+            │ │ Measurement-level:
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[[ 0,  0,  5],
+            │ │ │ │   [ 3, 10, 11],
+            │ │ │ │   [ 0,  0,  4]],
+            │ │ │ │  [[ 0,  0,  5],
+            │ │ │ │   [ 2, 10, 11],
+            │ │ │ │   [ 0,  0,  4]]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[[ 0.00,  0.00,  0.00],
+            │ │ │ │   [ 0.00, -1.45, -0.34],
+            │ │ │ │   [ 0.00,  0.00,  0.00]],
+            │ │ │ │  [[ 0.00,  0.00,  0.00],
+            │ │ │ │   [ 0.00,  3.00,  0.85],
+            │ │ │ │   [ 0.00,  0.00,  0.00]]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[[ True,  True, False],
+            │ │ │ │   [False,  True,  True],
+            │ │ │ │   [ True,  True, False]],
+            │ │ │ │  [[ True,  True, False],
+            │ │ │ │   [False,  True,  True],
+            │ │ │ │   [ True,  True, False]]]
         """
 
         data = JointNestedRaggedTensorDict.vstack([item["dynamic"] for item in batch])
@@ -916,16 +960,16 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             │ │ Dynamic:
             │ │ │ time_delta_days (torch.float32):
             │ │ │ │ [[0.00e+00, 1.07e+04,  ..., 2.20e-02, 0.00e+00],
-            │ │ │ │  [0.00e+00, 0.00e+00,  ..., 8.48e-03, 0.00e+00]]
+            │ │ │ │  [1.17e+04, 0.00e+00,  ..., 0.00e+00, 8.48e-03]]
             │ │ │ code (torch.int64):
             │ │ │ │ [[ 5,  1,  ..., 10, 11],
-            │ │ │ │  [10, 11,  ..., 10, 11]]
+            │ │ │ │  [ 1, 10,  ..., 11, 10]]
             │ │ │ numeric_value (torch.float32):
             │ │ │ │ [[ 0.00,  0.00,  ..., -0.04, -1.53],
-            │ │ │ │  [-0.23,  0.80,  ..., -0.30,  0.80]]
+            │ │ │ │  [ 0.00, -0.23,  ...,  0.69, -0.30]]
             │ │ │ numeric_value_mask (torch.bool):
             │ │ │ │ [[False, False,  ...,  True,  True],
-            │ │ │ │  [ True,  True,  ...,  True,  True]]
+            │ │ │ │  [False,  True,  ...,  True,  True]]
             │ │
             │ │ Static:
             │ │ │ static_code (torch.int64):

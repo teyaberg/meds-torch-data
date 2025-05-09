@@ -1075,4 +1075,6 @@ class MEDSTorchBatch:
 
         torch.set_printoptions(profile="default")
 
+        lines = [line.rstrip() for line in lines]
+
         return "\n".join(lines)

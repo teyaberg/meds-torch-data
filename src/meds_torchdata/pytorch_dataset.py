@@ -940,8 +940,12 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             torch.utils.data.DataLoader: A DataLoader object for this dataset.
 
         Examples:
+            >>> from meds_torchdata.types import SubsequenceSamplingStrategy
             >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.INCLUDE
+            >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.TO_END
             >>> sample_pytorch_dataset.config.batch_mode = "SM"
+            >>> _ = torch.manual_seed(0)
+            >>> torch.use_deterministic_algorithms(True)
             >>> DL = sample_pytorch_dataset.get_dataloader(batch_size=2, shuffle=False)
             >>> print(next(iter(DL)))
             MEDSTorchBatch:
@@ -959,17 +963,17 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             │ Data:
             │ │ Dynamic:
             │ │ │ time_delta_days (torch.float32):
-            │ │ │ │ [[0.00e+00, 1.07e+04,  ..., 2.20e-02, 0.00e+00],
-            │ │ │ │  [1.17e+04, 0.00e+00,  ..., 0.00e+00, 8.48e-03]]
+            │ │ │ │ [[1.07e+04, 0.00e+00,  ..., 0.00e+00, 2.08e-02],
+            │ │ │ │  [0.00e+00, 1.37e-02,  ..., 0.00e+00, 5.91e-03]]
             │ │ │ code (torch.int64):
-            │ │ │ │ [[ 5,  1,  ..., 10, 11],
-            │ │ │ │  [ 1, 10,  ..., 11, 10]]
+            │ │ │ │ [[ 1, 10,  ..., 11,  4],
+            │ │ │ │  [11, 10,  ..., 11,  4]]
             │ │ │ numeric_value (torch.float32):
-            │ │ │ │ [[ 0.00,  0.00,  ..., -0.04, -1.53],
-            │ │ │ │  [ 0.00, -0.23,  ...,  0.69, -0.30]]
+            │ │ │ │ [[ 0.00, -0.57,  ..., -1.53,  0.00],
+            │ │ │ │  [ 0.80,  0.34,  ...,  1.00,  0.00]]
             │ │ │ numeric_value_mask (torch.bool):
-            │ │ │ │ [[False, False,  ...,  True,  True],
-            │ │ │ │  [False,  True,  ...,  True,  True]]
+            │ │ │ │ [[False,  True,  ...,  True, False],
+            │ │ │ │  [ True,  True,  ...,  True, False]]
             │ │
             │ │ Static:
             │ │ │ static_code (torch.int64):

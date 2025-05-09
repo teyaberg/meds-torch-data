@@ -1,8 +1,10 @@
 import logging
 from functools import cached_property
+from pathlib import Path
 
 import numpy as np
 import polars as pl
+import pyarrow.parquet as pq
 import torch
 from meds import DataSchema, LabelSchema
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
@@ -82,7 +84,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         Returns:
             A copy of the labels DataFrame, restricted to included subjects, with the appropriate end indices
-            for each task sample.
+            for each task sample. Labels will be present if the `cls.LABEL_COL` is present in the input.
 
         Examples:
             >>> label_df = pl.DataFrame({
@@ -129,6 +131,20 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             │ 3          ┆ 1               ┆ 2020-01-02 00:00:00 ┆ false         │
             │ 3          ┆ 1               ┆ 2020-01-03 00:00:00 ┆ true          │
             └────────────┴─────────────────┴─────────────────────┴───────────────┘
+            >>> MEDSPytorchDataset.get_task_seq_bounds_and_labels(label_df.drop("boolean_value"), schema_df)
+            shape: (6, 3)
+            ┌────────────┬─────────────────┬─────────────────────┐
+            │ subject_id ┆ end_event_index ┆ prediction_time     │
+            │ ---        ┆ ---             ┆ ---                 │
+            │ i64        ┆ u32             ┆ datetime[μs]        │
+            ╞════════════╪═════════════════╪═════════════════════╡
+            │ 1          ┆ 2               ┆ 2020-01-01 00:00:00 │
+            │ 2          ┆ 3               ┆ 2020-01-01 00:00:00 │
+            │ 2          ┆ 5               ┆ 2020-01-02 00:00:00 │
+            │ 3          ┆ 1               ┆ 2020-01-01 00:00:00 │
+            │ 3          ┆ 1               ┆ 2020-01-02 00:00:00 │
+            │ 3          ┆ 1               ┆ 2020-01-03 00:00:00 │
+            └────────────┴─────────────────┴─────────────────────┘
         """
 
         end_idx_expr = (
@@ -138,19 +154,20 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             .alias(cls.END_IDX)
         )
 
+        group_cols = ["_row", DataSchema.subject_id_name, LabelSchema.prediction_time_name]
+        out_cols = [DataSchema.subject_id_name, cls.END_IDX, LabelSchema.prediction_time_name]
+
+        if cls.LABEL_COL in label_df.collect_schema().names():
+            group_cols.append(cls.LABEL_COL)
+            out_cols.append(cls.LABEL_COL)
+
         return (
             label_df.join(schema_df, on=DataSchema.subject_id_name, how="inner", maintain_order="left")
             .with_row_index("_row")
             .explode(DataSchema.time_name)
-            .group_by(
-                "_row",
-                DataSchema.subject_id_name,
-                LabelSchema.prediction_time_name,
-                cls.LABEL_COL,
-                maintain_order=True,
-            )
+            .group_by(group_cols, maintain_order=True)
             .agg(end_idx_expr)
-            .select(DataSchema.subject_id_name, cls.END_IDX, LabelSchema.prediction_time_name, cls.LABEL_COL)
+            .select(out_cols)
         )
 
     def __init__(self, cfg: MEDSTorchDataConfig, split: str):
@@ -187,7 +204,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         self.index = list(
             zip(self.schema_df[DataSchema.subject_id_name], self.schema_df[self.END_IDX], strict=False)
         )
-        self.labels = self.schema_df[self.LABEL_COL] if self.has_task else None
+        self.labels = self.schema_df[self.LABEL_COL] if self.has_task_labels else None
 
     @property
     def labels_df(self) -> pl.DataFrame:
@@ -215,17 +232,38 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             │ 1500733    ┆ 2010-06-03 16:00:00 ┆ true          │
             │ 1500733    ┆ 2010-06-03 16:30:00 ┆ true          │
             └────────────┴─────────────────────┴───────────────┘
+            >>> sample_pytorch_dataset_with_index.labels_df
+            shape: (21, 2)
+            ┌────────────┬─────────────────────┐
+            │ subject_id ┆ prediction_time     │
+            │ ---        ┆ ---                 │
+            │ i64        ┆ datetime[μs]        │
+            ╞════════════╪═════════════════════╡
+            │ 239684     ┆ 2010-05-11 18:00:00 │
+            │ 239684     ┆ 2010-05-11 18:30:00 │
+            │ 239684     ┆ 2010-05-11 19:00:00 │
+            │ 1195293    ┆ 2010-06-20 19:30:00 │
+            │ 1195293    ┆ 2010-06-20 20:00:00 │
+            │ …          ┆ …                   │
+            │ 754281     ┆ 2010-01-03 08:00:00 │
+            │ 1500733    ┆ 2010-06-03 15:00:00 │
+            │ 1500733    ┆ 2010-06-03 15:30:00 │
+            │ 1500733    ┆ 2010-06-03 16:00:00 │
+            │ 1500733    ┆ 2010-06-03 16:30:00 │
+            └────────────┴─────────────────────┘
         """
-        if not self.has_task:
+        if not self.has_task_index:
             return None
 
-        label_cols = [LabelSchema.subject_id_name, LabelSchema.prediction_time_name, self.LABEL_COL]
+        required_cols = [LabelSchema.subject_id_name, LabelSchema.prediction_time_name]
+
+        def read_df(fp: Path) -> pl.DataFrame:
+            schema = pq.read_schema(fp)
+            label_cols = [*required_cols, self.LABEL_COL] if self.LABEL_COL in schema.names else required_cols
+            return pl.read_parquet(fp, columns=label_cols, use_pyarrow=True)
 
         logger.info(f"Reading tasks from {self.config.task_labels_fps}")
-        return pl.concat(
-            [pl.read_parquet(fp, columns=label_cols, use_pyarrow=True) for fp in self.config.task_labels_fps],
-            how="vertical",
-        )
+        return pl.concat([read_df(fp) for fp in self.config.task_labels_fps], how="vertical")
 
     @cached_property
     def schema_df(self) -> pl.DataFrame:
@@ -266,6 +304,25 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             │ 814703     ┆ 2               ┆ 2010-02-05 06:30:00 ┆ true          │
             │ 814703     ┆ 2               ┆ 2010-02-05 07:00:00 ┆ true          │
             └────────────┴─────────────────┴─────────────────────┴───────────────┘
+            >>> sample_pytorch_dataset_with_index.schema_df
+            shape: (13, 3)
+            ┌────────────┬─────────────────┬─────────────────────┐
+            │ subject_id ┆ end_event_index ┆ prediction_time     │
+            │ ---        ┆ ---             ┆ ---                 │
+            │ i64        ┆ u32             ┆ datetime[μs]        │
+            ╞════════════╪═════════════════╪═════════════════════╡
+            │ 239684     ┆ 3               ┆ 2010-05-11 18:00:00 │
+            │ 239684     ┆ 4               ┆ 2010-05-11 18:30:00 │
+            │ 239684     ┆ 5               ┆ 2010-05-11 19:00:00 │
+            │ 1195293    ┆ 3               ┆ 2010-06-20 19:30:00 │
+            │ 1195293    ┆ 4               ┆ 2010-06-20 20:00:00 │
+            │ …          ┆ …               ┆ …                   │
+            │ 68729      ┆ 2               ┆ 2010-05-26 04:00:00 │
+            │ 68729      ┆ 2               ┆ 2010-05-26 04:30:00 │
+            │ 814703     ┆ 2               ┆ 2010-02-05 06:00:00 │
+            │ 814703     ┆ 2               ┆ 2010-02-05 06:30:00 │
+            │ 814703     ┆ 2               ┆ 2010-02-05 07:00:00 │
+            └────────────┴─────────────────┴─────────────────────┘
         """
 
         base_df = pl.concat(
@@ -276,7 +333,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             how="vertical",
         )
 
-        if self.has_task:
+        if self.has_task_index:
             return self.get_task_seq_bounds_and_labels(self.labels_df, base_df)
         else:
             return base_df.select(
@@ -295,16 +352,34 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         return len(self.index)
 
     @property
-    def has_task(self) -> bool:
-        """Returns whether the dataset has a task specified. A convenience wrapper around the config property.
+    def has_task_index(self) -> bool:
+        """Returns whether the dataset has a task index specified.
+
+        A convenience wrapper around the config property.
 
         Examples:
-            >>> sample_pytorch_dataset.has_task
+            >>> sample_pytorch_dataset.has_task_index
             False
-            >>> sample_pytorch_dataset_with_task.has_task
+            >>> sample_pytorch_dataset_with_index.has_task_index
+            True
+            >>> sample_pytorch_dataset_with_task.has_task_index
             True
         """
         return self.config.task_labels_dir is not None
+
+    @property
+    def has_task_labels(self) -> bool:
+        """Returns whether the dataset has a task specified with labels.
+
+        Examples:
+            >>> sample_pytorch_dataset.has_task_labels
+            False
+            >>> sample_pytorch_dataset_with_index.has_task_labels
+            False
+            >>> sample_pytorch_dataset_with_task.has_task_labels
+            True
+        """
+        return self.has_task_index and (self.LABEL_COL in self.schema_df.collect_schema().names())
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         """Retrieve a single data point from the dataset.
@@ -338,7 +413,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
         out["dynamic"] = self.config.process_dynamic_data(dynamic_data, rng=seed)
 
-        if self.has_task:
+        if self.has_task_labels:
             out[self.LABEL_COL] = self.labels[idx]
 
         return out
@@ -769,7 +844,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 ).float()
                 out["static_numeric_value_mask"] = ~torch.isnan(static_tensorized["static_numeric_value"])
 
-        if self.has_task:
+        if self.has_task_labels:
             out[self.LABEL_COL] = torch.Tensor([item[self.LABEL_COL] for item in batch]).bool()
 
         return MEDSTorchBatch(**out)

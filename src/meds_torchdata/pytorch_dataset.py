@@ -406,12 +406,32 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         subject_id, end_idx = self.index[idx]
         dynamic_data, static_data = self.load_subject_data(subject_id=subject_id, st=0, end=end_idx)
 
-        out = {
-            "static_code": static_data.code,
-            "static_numeric_value": static_data.numeric_value,
-        }
+        match self.config.static_inclusion_mode:
+            case StaticInclusionMode.OMIT:
+                out = {}
+                n_static_measurements = None
+            case StaticInclusionMode.INCLUDE:
+                n_static_measurements = None
+                out = {
+                    "static_code": static_data.code,
+                    "static_numeric_value": static_data.numeric_value,
+                }
+            case StaticInclusionMode.PREPEND:
+                n_static_measurements = static_data.code.shape[1]
+                out = {"n_static_measurements": n_static_measurements}
+            case _:
+                raise NotImplementedError(
+                    f"Static inclusion mode {self.config.static_inclusion_mode} not implemented."
+                )
 
-        out["dynamic"] = self.config.process_dynamic_data(dynamic_data, rng=seed)
+        dynamic_data = self.config.process_dynamic_data(
+            dynamic_data, n_static_measurements=n_static_measurements, rng=seed
+        )
+
+        if self.config.static_inclusion_mode == StaticInclusionMode.PREPEND:
+            raise NotImplementedError("Static inclusion mode PREPEND not yet implemented.")
+
+        out["dynamic"] = dynamic_data
 
         if self.has_task_labels:
             out[self.LABEL_COL] = self.labels[idx]
@@ -843,6 +863,13 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                     static_tensorized["static_numeric_value"], nan=0
                 ).float()
                 out["static_numeric_value_mask"] = ~torch.isnan(static_tensorized["static_numeric_value"])
+            case StaticInclusionMode.PREPEND:
+                # n_static_measurements = [item["n_static_measurements"] for item in batch]
+                raise NotImplementedError("Static inclusion mode PREPEND not yet implemented.")
+            case _:
+                raise NotImplementedError(
+                    f"Static inclusion mode {self.config.static_inclusion_mode} not implemented."
+                )
 
         if self.has_task_labels:
             out[self.LABEL_COL] = torch.Tensor([item[self.LABEL_COL] for item in batch]).bool()

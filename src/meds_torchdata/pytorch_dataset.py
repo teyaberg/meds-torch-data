@@ -567,8 +567,87 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         Examples:
             >>> raw_batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
             >>> print(sample_pytorch_dataset.collate(raw_batch))
+            MEDSTorchBatch:
+            │ Mode: Subject-Measurement (SM)
+            │ Static data? ✓
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length: 5
+            │ │
+            │ │ All dynamic data: (2, 5)
+            │ │ Static data: (2, 2)
+            │
+            │ Data:
+            │ │ Dynamic:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[0.00e+00, 1.18e+04,  ..., 0.00e+00, 9.79e-02],
+            │ │ │ │  [0.00e+00, 1.24e+04,  ..., 0.00e+00, 4.64e-02]]
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[ 5,  3,  ..., 11,  4],
+            │ │ │ │  [ 5,  2,  ..., 11,  4]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[ 0.00,  0.00,  ..., -0.34,  0.00],
+            │ │ │ │  [ 0.00,  0.00,  ...,  0.85,  0.00]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[False, False,  ...,  True, False],
+            │ │ │ │  [False, False,  ...,  True, False]]
+            │ │
+            │ │ Static:
+            │ │ │ static_code (torch.int64):
+            │ │ │ │ [[8, 9],
+            │ │ │ │  [8, 9]]
+            │ │ │ static_numeric_value (torch.float32):
+            │ │ │ │ [[ 0.00, -0.54],
+            │ │ │ │  [ 0.00, -1.10]]
+            │ │ │ static_numeric_value_mask (torch.bool):
+            │ │ │ │ [[False,  True],
+            │ │ │ │  [False,  True]]
             >>> raw_batch = [sample_pytorch_dataset_with_task[0], sample_pytorch_dataset_with_task[1]]
             >>> print(sample_pytorch_dataset_with_task.collate(raw_batch))
+            MEDSTorchBatch:
+            │ Mode: Subject-Measurement (SM)
+            │ Static data? ✓
+            │ Labels? ✓
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length: 8
+            │ │
+            │ │ All dynamic data: (2, 8)
+            │ │ Static data: (2, 2)
+            │ │ Labels: torch.Size([2])
+            │
+            │ Data:
+            │ │ Dynamic:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[0.00e+00, 1.07e+04,  ..., 0.00e+00, 0.00e+00],
+            │ │ │ │  [0.00e+00, 1.07e+04,  ..., 2.55e-02, 0.00e+00]]
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[ 5,  1,  ...,  0,  0],
+            │ │ │ │  [ 5,  1,  ..., 10, 11]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[ 0.00e+00,  0.00e+00,  ...,  0.00e+00,  0.00e+00],
+            │ │ │ │  [ 0.00e+00,  0.00e+00,  ...,  1.32e-03, -1.37e+00]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[False, False,  ...,  True,  True],
+            │ │ │ │  [False, False,  ...,  True,  True]]
+            │ │
+            │ │ Static:
+            │ │ │ static_code (torch.int64):
+            │ │ │ │ [[7, 9],
+            │ │ │ │  [7, 9]]
+            │ │ │ static_numeric_value (torch.float32):
+            │ │ │ │ [[0.00, 1.58],
+            │ │ │ │  [0.00, 1.58]]
+            │ │ │ static_numeric_value_mask (torch.bool):
+            │ │ │ │ [[False,  True],
+            │ │ │ │  [False,  True]]
+            │ │
+            │ │ Labels:
+            │ │ │ boolean_value (torch.bool):
+            │ │ │ │ [False,  True]
 
             You can also change the padding side. This defaults to "right" (which is typical for modeling) but
             you can set it to "left" for generative use cases. To show this, we'll also set the sampling
@@ -579,9 +658,111 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.TO_END
             >>> raw_batch = [sample_pytorch_dataset[i] for i in range(len(sample_pytorch_dataset))]
             >>> print(sample_pytorch_dataset.collate(raw_batch))
+            MEDSTorchBatch:
+            │ Mode: Subject-Measurement (SM)
+            │ Static data? ✓
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 4
+            │ │ Sequence length: 10
+            │ │
+            │ │ All dynamic data: (4, 10)
+            │ │ Static data: (4, 2)
+            │
+            │ Data:
+            │ │ Dynamic:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[1.07e+04, 0.00e+00,  ..., 0.00e+00, 2.08e-02],
+            │ │ │ │  [0.00e+00, 1.37e-02,  ..., 0.00e+00, 5.91e-03],
+            │ │ │ │  [0.00e+00, 0.00e+00,  ..., 0.00e+00, 9.79e-02],
+            │ │ │ │  [0.00e+00, 0.00e+00,  ..., 0.00e+00, 4.64e-02]]
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[ 1, 10,  ..., 11,  4],
+            │ │ │ │  [11, 10,  ..., 11,  4],
+            │ │ │ │  [ 0,  0,  ..., 11,  4],
+            │ │ │ │  [ 0,  0,  ..., 11,  4]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[ 0.00, -0.57,  ..., -1.53,  0.00],
+            │ │ │ │  [ 0.80,  0.34,  ...,  1.00,  0.00],
+            │ │ │ │  [ 0.00,  0.00,  ..., -0.34,  0.00],
+            │ │ │ │  [ 0.00,  0.00,  ...,  0.85,  0.00]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[False,  True,  ...,  True, False],
+            │ │ │ │  [ True,  True,  ...,  True, False],
+            │ │ │ │  [ True,  True,  ...,  True, False],
+            │ │ │ │  [ True,  True,  ...,  True, False]]
+            │ │
+            │ │ Static:
+            │ │ │ static_code (torch.int64):
+            │ │ │ │ [[7, 9],
+            │ │ │ │  [6, 9],
+            │ │ │ │  [8, 9],
+            │ │ │ │  [8, 9]]
+            │ │ │ static_numeric_value (torch.float32):
+            │ │ │ │ [[ 0.00,  1.58],
+            │ │ │ │  [ 0.00,  0.07],
+            │ │ │ │  [ 0.00, -0.54],
+            │ │ │ │  [ 0.00, -1.10]]
+            │ │ │ static_numeric_value_mask (torch.bool):
+            │ │ │ │ [[False,  True],
+            │ │ │ │  [False,  True],
+            │ │ │ │  [False,  True],
+            │ │ │ │  [False,  True]]
             >>> sample_pytorch_dataset.config.padding_side = "right"
             >>> raw_batch = [sample_pytorch_dataset[i] for i in range(len(sample_pytorch_dataset))]
             >>> print(sample_pytorch_dataset.collate(raw_batch))
+            MEDSTorchBatch:
+            │ Mode: Subject-Measurement (SM)
+            │ Static data? ✓
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 4
+            │ │ Sequence length: 10
+            │ │
+            │ │ All dynamic data: (4, 10)
+            │ │ Static data: (4, 2)
+            │
+            │ Data:
+            │ │ Dynamic:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[1.07e+04, 0.00e+00,  ..., 0.00e+00, 2.08e-02],
+            │ │ │ │  [0.00e+00, 1.37e-02,  ..., 0.00e+00, 5.91e-03],
+            │ │ │ │  [0.00e+00, 1.18e+04,  ..., 0.00e+00, 0.00e+00],
+            │ │ │ │  [0.00e+00, 1.24e+04,  ..., 0.00e+00, 0.00e+00]]
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[ 1, 10,  ..., 11,  4],
+            │ │ │ │  [11, 10,  ..., 11,  4],
+            │ │ │ │  [ 5,  3,  ...,  0,  0],
+            │ │ │ │  [ 5,  2,  ...,  0,  0]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[ 0.00, -0.57,  ..., -1.53,  0.00],
+            │ │ │ │  [ 0.80,  0.34,  ...,  1.00,  0.00],
+            │ │ │ │  [ 0.00,  0.00,  ...,  0.00,  0.00],
+            │ │ │ │  [ 0.00,  0.00,  ...,  0.00,  0.00]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[False,  True,  ...,  True, False],
+            │ │ │ │  [ True,  True,  ...,  True, False],
+            │ │ │ │  [False, False,  ...,  True,  True],
+            │ │ │ │  [False, False,  ...,  True,  True]]
+            │ │
+            │ │ Static:
+            │ │ │ static_code (torch.int64):
+            │ │ │ │ [[7, 9],
+            │ │ │ │  [6, 9],
+            │ │ │ │  [8, 9],
+            │ │ │ │  [8, 9]]
+            │ │ │ static_numeric_value (torch.float32):
+            │ │ │ │ [[ 0.00,  1.58],
+            │ │ │ │  [ 0.00,  0.07],
+            │ │ │ │  [ 0.00, -0.54],
+            │ │ │ │  [ 0.00, -1.10]]
+            │ │ │ static_numeric_value_mask (torch.bool):
+            │ │ │ │ [[False,  True],
+            │ │ │ │  [False,  True],
+            │ │ │ │  [False,  True],
+            │ │ │ │  [False,  True]]
 
             Static data can also be omitted if set in the config.
 
@@ -589,12 +770,81 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.RANDOM
             >>> raw_batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
             >>> print(sample_pytorch_dataset.collate(raw_batch))
+            MEDSTorchBatch:
+            │ Mode: Subject-Measurement (SM)
+            │ Static data? ✗
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length: 5
+            │ │
+            │ │ All dynamic data: (2, 5)
+            │
+            │ Data:
+            │ │ Dynamic:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[0.00e+00, 1.18e+04,  ..., 0.00e+00, 9.79e-02],
+            │ │ │ │  [0.00e+00, 1.24e+04,  ..., 0.00e+00, 4.64e-02]]
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[ 5,  3,  ..., 11,  4],
+            │ │ │ │  [ 5,  2,  ..., 11,  4]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[ 0.00,  0.00,  ..., -0.34,  0.00],
+            │ │ │ │  [ 0.00,  0.00,  ...,  0.85,  0.00]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[False, False,  ...,  True, False],
+            │ │ │ │  [False, False,  ...,  True, False]]
 
             If the batch mode is SEM, the event mask will also be included and the output shape will differ:
 
             >>> sample_pytorch_dataset.config.batch_mode = "SEM"
             >>> raw_batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
             >>> print(sample_pytorch_dataset.collate(raw_batch))
+            MEDSTorchBatch:
+            │ Mode: Subject-Event-Measurement (SEM)
+            │ Static data? ✗
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length: 3
+            │ │ Event length: 3
+            │ │
+            │ │ Per-event data: (2, 3)
+            │ │ Per-measurement data: (2, 3, 3)
+            │
+            │ Data:
+            │ │ Event-level:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[0.00e+00, 1.18e+04, 9.79e-02],
+            │ │ │ │  [0.00e+00, 1.24e+04, 4.64e-02]]
+            │ │ │ event_mask (torch.bool):
+            │ │ │ │ [[True, True, True],
+            │ │ │ │  [True, True, True]]
+            │ │
+            │ │ Measurement-level:
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[[ 5,  0,  0],
+            │ │ │ │   [ 3, 10, 11],
+            │ │ │ │   [ 4,  0,  0]],
+            │ │ │ │  [[ 5,  0,  0],
+            │ │ │ │   [ 2, 10, 11],
+            │ │ │ │   [ 4,  0,  0]]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[[ 0.00,  0.00,  0.00],
+            │ │ │ │   [ 0.00, -1.45, -0.34],
+            │ │ │ │   [ 0.00,  0.00,  0.00]],
+            │ │ │ │  [[ 0.00,  0.00,  0.00],
+            │ │ │ │   [ 0.00,  3.00,  0.85],
+            │ │ │ │   [ 0.00,  0.00,  0.00]]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[[False,  True,  True],
+            │ │ │ │   [False,  True,  True],
+            │ │ │ │   [False,  True,  True]],
+            │ │ │ │  [[False,  True,  True],
+            │ │ │ │   [False,  True,  True],
+            │ │ │ │   [False,  True,  True]]]
 
             Padding side changes work in this mode as well.
 
@@ -650,5 +900,42 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             >>> sample_pytorch_dataset.config.batch_mode = "SM"
             >>> DL = sample_pytorch_dataset.get_dataloader(batch_size=2, shuffle=False)
             >>> print(next(iter(DL)))
+            MEDSTorchBatch:
+            │ Mode: Subject-Measurement (SM)
+            │ Static data? ✓
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length: 10
+            │ │
+            │ │ All dynamic data: (2, 10)
+            │ │ Static data: (2, 2)
+            │
+            │ Data:
+            │ │ Dynamic:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[0.00e+00, 1.07e+04,  ..., 2.20e-02, 0.00e+00],
+            │ │ │ │  [0.00e+00, 0.00e+00,  ..., 8.48e-03, 0.00e+00]]
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[ 5,  1,  ..., 10, 11],
+            │ │ │ │  [10, 11,  ..., 10, 11]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[ 0.00,  0.00,  ..., -0.04, -1.53],
+            │ │ │ │  [-0.23,  0.80,  ..., -0.30,  0.80]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[False, False,  ...,  True,  True],
+            │ │ │ │  [ True,  True,  ...,  True,  True]]
+            │ │
+            │ │ Static:
+            │ │ │ static_code (torch.int64):
+            │ │ │ │ [[7, 9],
+            │ │ │ │  [6, 9]]
+            │ │ │ static_numeric_value (torch.float32):
+            │ │ │ │ [[0.00, 1.58],
+            │ │ │ │  [0.00, 0.07]]
+            │ │ │ static_numeric_value_mask (torch.bool):
+            │ │ │ │ [[False,  True],
+            │ │ │ │  [False,  True]]
         """
         return torch.utils.data.DataLoader(self, collate_fn=self.collate, **kwargs)

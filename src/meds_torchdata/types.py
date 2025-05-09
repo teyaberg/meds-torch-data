@@ -296,7 +296,7 @@ class MEDSTorchBatch:
         >>> print(batch.mode)
         SEM
         >>> print(batch.static_inclusion_mode)
-        OMIT
+        omit
         >>> print(batch.has_labels)
         False
         >>> print(batch.batch_size)
@@ -325,7 +325,7 @@ class MEDSTorchBatch:
         >>> print(batch.mode)
         SM
         >>> print(batch.static_inclusion_mode)
-        INCLUDE
+        include
         >>> print(batch.has_labels)
         True
         >>> print(batch.batch_size)

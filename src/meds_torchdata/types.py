@@ -1066,6 +1066,132 @@ class MEDSTorchBatch:
             │ │ │ │  [[False,  True, False],
             │ │ │ │   [ True,  True,  True]]]
             >>> print(MEDSTorchBatch(
+            ...     time_delta_days=torch.tensor([[1.0, 2.1], [4.0, 0.0]]),
+            ...     event_mask=torch.tensor([[True, True], [True, False]]),
+            ...     code=torch.tensor([[[1, 2, 3], [3, 0, 0]], [[5, 6, 0], [0, 0, 0]]]),
+            ...     numeric_value=torch.tensor(
+            ...         [[[1.0, 0.0, -3.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]
+            ...     ),
+            ...     numeric_value_mask=torch.tensor([
+            ...         [[True, False, True], [False, False, False]],
+            ...         [[False, True, False], [True, True, True]]
+            ...     ]),
+            ...     static_code=torch.tensor([[1], [5]]),
+            ...     static_numeric_value=torch.tensor([[1.0], [0.0]]),
+            ...     static_numeric_value_mask=torch.tensor([[True], [True]]),
+            ... ))
+            MEDSTorchBatch:
+            │ Mode: Subject-Event-Measurement (SEM)
+            │ Static data? ✓
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length: 2
+            │ │ Event length: 3
+            │ │
+            │ │ Per-event data: (2, 2)
+            │ │ Per-measurement data: (2, 2, 3)
+            │ │ Static data: (2, 1)
+            │
+            │ Data:
+            │ │ Event-level:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[1.00, 2.10],
+            │ │ │ │  [4.00, 0.00]]
+            │ │ │ event_mask (torch.bool):
+            │ │ │ │ [[ True,  True],
+            │ │ │ │  [ True, False]]
+            │ │
+            │ │ Measurement-level:
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[[1, 2, 3],
+            │ │ │ │   [3, 0, 0]],
+            │ │ │ │  [[5, 6, 0],
+            │ │ │ │   [0, 0, 0]]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[[ 1.,  0., -3.],
+            │ │ │ │   [ 0.,  0.,  0.]],
+            │ │ │ │  [[ 0.,  0.,  0.],
+            │ │ │ │   [ 0.,  0.,  0.]]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[[ True, False,  True],
+            │ │ │ │   [False, False, False]],
+            │ │ │ │  [[False,  True, False],
+            │ │ │ │   [ True,  True,  True]]]
+            │ │
+            │ │ Static:
+            │ │ │ static_code (torch.int64):
+            │ │ │ │ [[1],
+            │ │ │ │  [5]]
+            │ │ │ static_numeric_value (torch.float32):
+            │ │ │ │ [[1.],
+            │ │ │ │  [0.]]
+            │ │ │ static_numeric_value_mask (torch.bool):
+            │ │ │ │ [[True],
+            │ │ │ │  [True]]
+            >>> print(MEDSTorchBatch(
+            ...     time_delta_days=torch.tensor([[0.0, 1.0, 2.1], [0.0, 4.0, 0.0]]),
+            ...     event_mask=torch.tensor([[True, True, True], [True, True, False]]),
+            ...     static_mask=torch.tensor([[True, False, False], [True, False, False]]),
+            ...     code=torch.tensor([[[1, 0, 0], [1, 2, 3], [3, 0, 0]], [[5, 0, 0], [5, 6, 0], [0, 0, 0]]]),
+            ...     numeric_value=torch.tensor(
+            ...         [[[1.0, 0.0, 0.0], [1.0, 0.0, -3.0], [0.0, 0.0, 0.0]],
+            ...          [[0.0, 0.0, 0.0], [0.0, 0.0,  0.0], [0.0, 0.0, 0.0]]]
+            ...     ),
+            ...     numeric_value_mask=torch.tensor([
+            ...         [[True, False, False], [True, False, True], [False, False, False]],
+            ...         [[True, False, False], [False, True, False], [True, True, True]]
+            ...     ]),
+            ... ))
+            MEDSTorchBatch:
+            │ Mode: Subject-Event-Measurement (SEM)
+            │ Static data? ✓ (prepended)
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length (static + dynamic): 2
+            │ │ Event length: 3
+            │ │
+            │ │ Per-event data: (2, 3)
+            │ │ Per-measurement data: (2, 3, 3)
+            │
+            │ Data:
+            │ │ Event-level:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[0.00, 1.00, 2.10],
+            │ │ │ │  [0.00, 4.00, 0.00]]
+            │ │ │ event_mask (torch.bool):
+            │ │ │ │ [[ True, True,  True],
+            │ │ │ │  [ True, True, False]]
+            │ │ │ static_mask (torch.bool):
+            │ │ │ │ [[ True, False, False],
+            │ │ │ │  [ True, False, False]]
+            │ │
+            │ │ Measurement-level:
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[[1, 0, 0],
+            │ │ │ │   [1, 2, 3],
+            │ │ │ │   [3, 0, 0]],
+            │ │ │ │  [[5, 0, 0],
+            │ │ │ │   [5, 6, 0],
+            │ │ │ │   [0, 0, 0]]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[[ 1.,  0.,  0.],
+            │ │ │ │   [ 1.,  0., -3.],
+            │ │ │ │   [ 0.,  0.,  0.]],
+            │ │ │ │  [[ 0.,  0.,  0.],
+            │ │ │ │   [ 0.,  0.,  0.],
+            │ │ │ │   [ 0.,  0.,  0.]]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[[ True, False, False],
+            │ │ │ │   [ True, False,  True],
+            │ │ │ │   [False, False, False]],
+            │ │ │ │  [[ True, False, False],
+            │ │ │ │   [False,  True, False],
+            │ │ │ │   [ True,  True,  True]]]
+            >>> print(MEDSTorchBatch(
             ...     time_delta_days=torch.tensor([[1.0, 0.0, 0.0, 2.1], [4.0, 0.0, 0.0, 0.0]]),
             ...     code=torch.tensor([[1, 2, 3, 3], [5, 6, 0, 0]]),
             ...     numeric_value=torch.tensor([[1.0, 0.0, -3.0, 0.0], [0.0, 0.0, 0.0, 0.0]]),

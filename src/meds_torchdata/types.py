@@ -1117,6 +1117,51 @@ class MEDSTorchBatch:
             │ │ Labels:
             │ │ │ boolean_value (torch.bool):
             │ │ │ │ [ True, False]
+            >>> print(MEDSTorchBatch(
+            ...     time_delta_days=torch.tensor([[0.0, 1.0, 0.0, 0.0, 2.1], [0.0, 4.0, 0.0, 0.0, 0.0]]),
+            ...     code=torch.tensor([[1, 1, 2, 3, 3], [5, 5, 6, 0, 0]]),
+            ...     numeric_value=torch.tensor([[1.0, 1.0, 0.0, -3.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0]]),
+            ...     numeric_value_mask=torch.tensor(
+            ...         [[True, True, False, True, False], [True, False, True, False, True]]
+            ...     ),
+            ...     static_mask=torch.tensor(
+            ...         [[True, False, False, False, False], [True, False, False, False, False]]
+            ...     ),
+            ...     boolean_value=torch.tensor([True, False]),
+            ... ))
+            MEDSTorchBatch:
+            │ Mode: Subject-Measurement (SM)
+            │ Static data? ✓ (prepended)
+            │ Labels? ✓
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length: 4
+            │ │
+            │ │ All [static; dynamic] data: (2, 5)
+            │ │ Labels: torch.Size([2])
+            │
+            │ Data:
+            │ │ [Static; Dynamic]:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[0.00, 1.00, 0.00, 0.00, 2.10],
+            │ │ │ │  [0.00, 4.00, 0.00, 0.00, 0.00]]
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[1, 1, 2, 3, 3],
+            │ │ │ │  [5, 5, 6, 0, 0]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[ 1., 1.,  0., -3.,  0.],
+            │ │ │ │  [ 0., 0.,  0.,  0.,  0.]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[ True,  True, False,  True, False],
+            │ │ │ │  [ True, False,  True, False,  True]]
+            │ │ │ static_mask (torch.bool):
+            │ │ │ │ [[ True, False, False, False, False],
+            │ │ │ │  [ True, False, False, False, False]]
+            │ │
+            │ │ Labels:
+            │ │ │ boolean_value (torch.bool):
+            │ │ │ │ [ True, False]
         """
 
         lines = [f"{self.__class__.__name__}:"]

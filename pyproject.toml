@@ -98,4 +98,4 @@ select = [
 "test_*" = ["DTZ001"]  # Ignore datetimez in test files
 
 [tool.ruff.lint.pep8-naming]
-extend-ignore-names = ["*MEDS*", "*NRT*", "_SE_*", "_SEM_*", "_SM_*", "D", "L"]
+extend-ignore-names = ["*MEDS*", "*NRT*", "*_SE_*", "*_SEM_*", "*_SM_*", "D", "L"]

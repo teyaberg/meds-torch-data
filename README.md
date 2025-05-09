@@ -608,52 +608,87 @@ on the batch class for more information.
 
 ```python
 >>> batches = [batch for batch in pyd.get_dataloader(batch_size=2)]
->>> print_element(batches[1])
-code (Tensor):
-tensor([[ 5,  3, 10, 11,  4],
-        [ 5,  2, 10, 11,  4]])
-numeric_value (Tensor):
-tensor([[ 0.0000,  0.0000, -1.4475, -0.3405,  0.0000],
-        [ 0.0000,  0.0000,  3.0047,  0.8491,  0.0000]])
-numeric_value_mask (Tensor):
-tensor([[False, False,  True,  True, False],
-        [False, False,  True,  True, False]])
-time_delta_days (Tensor):
-tensor([[0.0000e+00, 1.1766e+04, 0.0000e+00, 0.0000e+00, 9.7870e-02],
-        [0.0000e+00, 1.2367e+04, 0.0000e+00, 0.0000e+00, 4.6424e-02]])
-static_code (Tensor):
-tensor([[8, 9],
-        [8, 9]])
-static_numeric_value (Tensor):
-tensor([[ 0.0000, -0.5438],
-        [ 0.0000, -1.1012]])
-static_numeric_value_mask (Tensor):
-tensor([[False,  True],
-        [False,  True]])
->>> print_element(next(iter(pyd_with_task.get_dataloader(batch_size=2))))
-code (Tensor):
-tensor([[ 1, 10, 11, 10, 11],
-        [11, 10, 11, 10, 11]])
-numeric_value (Tensor):
-tensor([[ 0.0000e+00, -5.6974e-01, -1.2715e+00, -4.3755e-01, -1.1680e+00],
-        [-1.2715e+00, -4.3755e-01, -1.1680e+00,  1.3220e-03, -1.3749e+00]])
-numeric_value_mask (Tensor):
-tensor([[False,  True,  True,  True,  True],
-        [ True,  True,  True,  True,  True]])
-time_delta_days (Tensor):
-tensor([[1.0727e+04, 0.0000e+00, 0.0000e+00, 4.8264e-03, 0.0000e+00],
-        [0.0000e+00, 4.8264e-03, 0.0000e+00, 2.5544e-02, 0.0000e+00]])
-static_code (Tensor):
-tensor([[7, 9],
-        [7, 9]])
-static_numeric_value (Tensor):
-tensor([[0.0000, 1.5770],
-        [0.0000, 1.5770]])
-static_numeric_value_mask (Tensor):
-tensor([[False,  True],
-        [False,  True]])
-boolean_value (Tensor):
-tensor([False,  True])
+>>> print(batches[1])
+MEDSTorchBatch:
+│ Mode: Subject-Measurement (SM)
+│ Static data? ✓
+│ Labels? ✗
+│
+│ Shape:
+│ │ Batch size: 2
+│ │ Sequence length: 5
+│ │
+│ │ All dynamic data: (2, 5)
+│ │ Static data: (2, 2)
+│
+│ Data:
+│ │ Dynamic:
+│ │ │ time_delta_days (torch.float32):
+│ │ │ │ [[0.00e+00, 1.18e+04,  ..., 0.00e+00, 9.79e-02],
+│ │ │ │  [0.00e+00, 1.24e+04,  ..., 0.00e+00, 4.64e-02]]
+│ │ │ code (torch.int64):
+│ │ │ │ [[ 5,  3,  ..., 11,  4],
+│ │ │ │  [ 5,  2,  ..., 11,  4]]
+│ │ │ numeric_value (torch.float32):
+│ │ │ │ [[ 0.00,  0.00,  ..., -0.34,  0.00],
+│ │ │ │  [ 0.00,  0.00,  ...,  0.85,  0.00]]
+│ │ │ numeric_value_mask (torch.bool):
+│ │ │ │ [[False, False,  ...,  True, False],
+│ │ │ │  [False, False,  ...,  True, False]]
+│ │
+│ │ Static:
+│ │ │ static_code (torch.int64):
+│ │ │ │ [[8, 9],
+│ │ │ │  [8, 9]]
+│ │ │ static_numeric_value (torch.float32):
+│ │ │ │ [[ 0.00, -0.54],
+│ │ │ │  [ 0.00, -1.10]]
+│ │ │ static_numeric_value_mask (torch.bool):
+│ │ │ │ [[False,  True],
+│ │ │ │  [False,  True]]
+>>> print(next(iter(pyd_with_task.get_dataloader(batch_size=2))))
+MEDSTorchBatch:
+│ Mode: Subject-Measurement (SM)
+│ Static data? ✓
+│ Labels? ✓
+│
+│ Shape:
+│ │ Batch size: 2
+│ │ Sequence length: 5
+│ │
+│ │ All dynamic data: (2, 5)
+│ │ Static data: (2, 2)
+│ │ Labels: torch.Size([2])
+│
+│ Data:
+│ │ Dynamic:
+│ │ │ time_delta_days (torch.float32):
+│ │ │ │ [[1.07e+04, 0.00e+00,  ..., 4.83e-03, 0.00e+00],
+│ │ │ │  [0.00e+00, 4.83e-03,  ..., 2.55e-02, 0.00e+00]]
+│ │ │ code (torch.int64):
+│ │ │ │ [[ 1, 10,  ..., 10, 11],
+│ │ │ │  [11, 10,  ..., 10, 11]]
+│ │ │ numeric_value (torch.float32):
+│ │ │ │ [[ 0.00e+00, -5.70e-01,  ..., -4.38e-01, -1.17e+00],
+│ │ │ │  [-1.27e+00, -4.38e-01,  ...,  1.32e-03, -1.37e+00]]
+│ │ │ numeric_value_mask (torch.bool):
+│ │ │ │ [[False,  True,  ...,  True,  True],
+│ │ │ │  [ True,  True,  ...,  True,  True]]
+│ │
+│ │ Static:
+│ │ │ static_code (torch.int64):
+│ │ │ │ [[7, 9],
+│ │ │ │  [7, 9]]
+│ │ │ static_numeric_value (torch.float32):
+│ │ │ │ [[0.00, 1.58],
+│ │ │ │  [0.00, 1.58]]
+│ │ │ static_numeric_value_mask (torch.bool):
+│ │ │ │ [[False,  True],
+│ │ │ │  [False,  True]]
+│ │
+│ │ Labels:
+│ │ │ boolean_value (torch.bool):
+│ │ │ │ [False,  True]
 
 ```
 
@@ -689,95 +724,132 @@ numeric_value
  [        nan -1.4474752  -0.34049404]
  [        nan  0.          0.        ]]
 >>> batches = [batch for batch in pyd.get_dataloader(batch_size=2)]
->>> print_element(batches[1])
-code (Tensor):
-tensor([[[ 5,  0,  0],
-         [ 3, 10, 11],
-         [ 4,  0,  0]],
-<BLANKLINE>
-        [[ 5,  0,  0],
-         [ 2, 10, 11],
-         [ 4,  0,  0]]])
-numeric_value (Tensor):
-tensor([[[ 0.0000,  0.0000,  0.0000],
-         [ 0.0000, -1.4475, -0.3405],
-         [ 0.0000,  0.0000,  0.0000]],
-<BLANKLINE>
-        [[ 0.0000,  0.0000,  0.0000],
-         [ 0.0000,  3.0047,  0.8491],
-         [ 0.0000,  0.0000,  0.0000]]])
-numeric_value_mask (Tensor):
-tensor([[[False,  True,  True],
-         [False,  True,  True],
-         [False,  True,  True]],
-<BLANKLINE>
-        [[False,  True,  True],
-         [False,  True,  True],
-         [False,  True,  True]]])
-time_delta_days (Tensor):
-tensor([[0.0000e+00, 1.1766e+04, 9.7870e-02],
-        [0.0000e+00, 1.2367e+04, 4.6424e-02]])
-event_mask (Tensor):
-tensor([[True, True, True],
-        [True, True, True]])
-static_code (Tensor):
-tensor([[8, 9],
-        [8, 9]])
-static_numeric_value (Tensor):
-tensor([[ 0.0000, -0.5438],
-        [ 0.0000, -1.1012]])
-static_numeric_value_mask (Tensor):
-tensor([[False,  True],
-        [False,  True]])
+>>> print(batches[1])
+MEDSTorchBatch:
+│ Mode: Subject-Event-Measurement (SEM)
+│ Static data? ✓
+│ Labels? ✗
+│
+│ Shape:
+│ │ Batch size: 2
+│ │ Sequence length: 3
+│ │ Event length: 3
+│ │
+│ │ Per-event data: (2, 3)
+│ │ Per-measurement data: (2, 3, 3)
+│ │ Static data: (2, 2)
+│
+│ Data:
+│ │ Event-level:
+│ │ │ time_delta_days (torch.float32):
+│ │ │ │ [[0.00e+00, 1.18e+04, 9.79e-02],
+│ │ │ │  [0.00e+00, 1.24e+04, 4.64e-02]]
+│ │ │ event_mask (torch.bool):
+│ │ │ │ [[True, True, True],
+│ │ │ │  [True, True, True]]
+│ │
+│ │ Measurement-level:
+│ │ │ code (torch.int64):
+│ │ │ │ [[[ 5,  0,  0],
+│ │ │ │   [ 3, 10, 11],
+│ │ │ │   [ 4,  0,  0]],
+│ │ │ │  [[ 5,  0,  0],
+│ │ │ │   [ 2, 10, 11],
+│ │ │ │   [ 4,  0,  0]]]
+│ │ │ numeric_value (torch.float32):
+│ │ │ │ [[[ 0.00,  0.00,  0.00],
+│ │ │ │   [ 0.00, -1.45, -0.34],
+│ │ │ │   [ 0.00,  0.00,  0.00]],
+│ │ │ │  [[ 0.00,  0.00,  0.00],
+│ │ │ │   [ 0.00,  3.00,  0.85],
+│ │ │ │   [ 0.00,  0.00,  0.00]]]
+│ │ │ numeric_value_mask (torch.bool):
+│ │ │ │ [[[False,  True,  True],
+│ │ │ │   [False,  True,  True],
+│ │ │ │   [False,  True,  True]],
+│ │ │ │  [[False,  True,  True],
+│ │ │ │   [False,  True,  True],
+│ │ │ │   [False,  True,  True]]]
+│ │
+│ │ Static:
+│ │ │ static_code (torch.int64):
+│ │ │ │ [[8, 9],
+│ │ │ │  [8, 9]]
+│ │ │ static_numeric_value (torch.float32):
+│ │ │ │ [[ 0.00, -0.54],
+│ │ │ │  [ 0.00, -1.10]]
+│ │ │ static_numeric_value_mask (torch.bool):
+│ │ │ │ [[False,  True],
+│ │ │ │  [False,  True]]
 >>> pyd_with_task.config.batch_mode = "SEM"
->>> print_element(next(iter(pyd_with_task.get_dataloader(batch_size=2))))
-code (Tensor):
-tensor([[[ 5,  0,  0],
-         [ 1, 10, 11],
-         [10, 11,  0],
-         [ 0,  0,  0]],
-<BLANKLINE>
-        [[ 5,  0,  0],
-         [ 1, 10, 11],
-         [10, 11,  0],
-         [10, 11,  0]]])
-numeric_value (Tensor):
-tensor([[[ 0.0000e+00,  0.0000e+00,  0.0000e+00],
-         [ 0.0000e+00, -5.6974e-01, -1.2715e+00],
-         [-4.3755e-01, -1.1680e+00,  0.0000e+00],
-         [ 0.0000e+00,  0.0000e+00,  0.0000e+00]],
-<BLANKLINE>
-        [[ 0.0000e+00,  0.0000e+00,  0.0000e+00],
-         [ 0.0000e+00, -5.6974e-01, -1.2715e+00],
-         [-4.3755e-01, -1.1680e+00,  0.0000e+00],
-         [ 1.3220e-03, -1.3749e+00,  0.0000e+00]]])
-numeric_value_mask (Tensor):
-tensor([[[False,  True,  True],
-         [False,  True,  True],
-         [ True,  True,  True],
-         [ True,  True,  True]],
-<BLANKLINE>
-        [[False,  True,  True],
-         [False,  True,  True],
-         [ True,  True,  True],
-         [ True,  True,  True]]])
-time_delta_days (Tensor):
-tensor([[0.0000e+00, 1.0727e+04, 4.8264e-03, 0.0000e+00],
-        [0.0000e+00, 1.0727e+04, 4.8264e-03, 2.5544e-02]])
-event_mask (Tensor):
-tensor([[ True,  True,  True, False],
-        [ True,  True,  True,  True]])
-static_code (Tensor):
-tensor([[7, 9],
-        [7, 9]])
-static_numeric_value (Tensor):
-tensor([[0.0000, 1.5770],
-        [0.0000, 1.5770]])
-static_numeric_value_mask (Tensor):
-tensor([[False,  True],
-        [False,  True]])
-boolean_value (Tensor):
-tensor([False,  True])
+>>> print(next(iter(pyd_with_task.get_dataloader(batch_size=2))))
+MEDSTorchBatch:
+│ Mode: Subject-Event-Measurement (SEM)
+│ Static data? ✓
+│ Labels? ✓
+│
+│ Shape:
+│ │ Batch size: 2
+│ │ Sequence length: 4
+│ │ Event length: 3
+│ │
+│ │ Per-event data: (2, 4)
+│ │ Per-measurement data: (2, 4, 3)
+│ │ Static data: (2, 2)
+│ │ Labels: torch.Size([2])
+│
+│ Data:
+│ │ Event-level:
+│ │ │ time_delta_days (torch.float32):
+│ │ │ │ [[0.00e+00, 1.07e+04, 4.83e-03, 0.00e+00],
+│ │ │ │  [0.00e+00, 1.07e+04, 4.83e-03, 2.55e-02]]
+│ │ │ event_mask (torch.bool):
+│ │ │ │ [[ True,  True,  True, False],
+│ │ │ │  [ True,  True,  True,  True]]
+│ │
+│ │ Measurement-level:
+│ │ │ code (torch.int64):
+│ │ │ │ [[[ 5,  0,  0],
+│ │ │ │   [ 1, 10, 11],
+│ │ │ │   [10, 11,  0],
+│ │ │ │   [ 0,  0,  0]],
+│ │ │ │  [[ 5,  0,  0],
+│ │ │ │   [ 1, 10, 11],
+│ │ │ │   [10, 11,  0],
+│ │ │ │   [10, 11,  0]]]
+│ │ │ numeric_value (torch.float32):
+│ │ │ │ [[[ 0.00e+00,  0.00e+00,  0.00e+00],
+│ │ │ │   [ 0.00e+00, -5.70e-01, -1.27e+00],
+│ │ │ │   [-4.38e-01, -1.17e+00,  0.00e+00],
+│ │ │ │   [ 0.00e+00,  0.00e+00,  0.00e+00]],
+│ │ │ │  [[ 0.00e+00,  0.00e+00,  0.00e+00],
+│ │ │ │   [ 0.00e+00, -5.70e-01, -1.27e+00],
+│ │ │ │   [-4.38e-01, -1.17e+00,  0.00e+00],
+│ │ │ │   [ 1.32e-03, -1.37e+00,  0.00e+00]]]
+│ │ │ numeric_value_mask (torch.bool):
+│ │ │ │ [[[False,  True,  True],
+│ │ │ │   [False,  True,  True],
+│ │ │ │   [ True,  True,  True],
+│ │ │ │   [ True,  True,  True]],
+│ │ │ │  [[False,  True,  True],
+│ │ │ │   [False,  True,  True],
+│ │ │ │   [ True,  True,  True],
+│ │ │ │   [ True,  True,  True]]]
+│ │
+│ │ Static:
+│ │ │ static_code (torch.int64):
+│ │ │ │ [[7, 9],
+│ │ │ │  [7, 9]]
+│ │ │ static_numeric_value (torch.float32):
+│ │ │ │ [[0.00, 1.58],
+│ │ │ │  [0.00, 1.58]]
+│ │ │ static_numeric_value_mask (torch.bool):
+│ │ │ │ [[False,  True],
+│ │ │ │  [False,  True]]
+│ │
+│ │ Labels:
+│ │ │ boolean_value (torch.bool):
+│ │ │ │ [False,  True]
 
 ```
 

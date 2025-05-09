@@ -1,5 +1,6 @@
 """Exports simple type definitions used in MEDS torchdata."""
 
+import textwrap
 from collections.abc import Generator
 from dataclasses import dataclass, fields
 from enum import StrEnum
@@ -8,6 +9,8 @@ from typing import ClassVar, NamedTuple, get_args
 import torch
 
 from .utils import SEED_OR_RNG, resolve_rng
+
+BRANCH = "│ "
 
 
 class PaddingSide(StrEnum):
@@ -602,6 +605,16 @@ class MEDSTorchBatch:
     static_numeric_value_mask: torch.BoolTensor | None = None
     boolean_value: torch.BoolTensor | None = None
 
+    STATIC_TENSOR_NAMES: ClassVar[tuple[str]] = (
+        "static_code",
+        "static_numeric_value",
+        "static_numeric_value_mask",
+    )
+    SE_TENSOR_NAMES: ClassVar[tuple[str]] = ("time_delta_days", "event_mask")
+    SM_TENSOR_NAMES: ClassVar[tuple[str]] = ("time_delta_days", "code", "numeric_value", "numeric_value_mask")
+    SEM_TENSOR_NAMES: ClassVar[tuple[str]] = ("code", "numeric_value", "numeric_value_mask")
+    LABEL_TENSOR_NAMES: ClassVar[tuple[str]] = ("boolean_value",)
+
     def __check_shape(self, name: str, shape: tuple[int, ...]) -> None:
         """Check that the shape of a tensor matches the expected shape, or raise an appropriate error."""
         got_shape = getattr(self, name).shape
@@ -826,3 +839,240 @@ class MEDSTorchBatch:
             (2, 1)
         """
         return (self.batch_size, self.max_static_measurements_per_subject)
+
+    def __shape_str_lines(self) -> list[str]:
+        """Gets the lines in the string representation corresponding to the shape block."""
+        shape_lines = ["Shape:"]
+
+        shape_lines.append(f"{BRANCH}Batch size: {self.batch_size}")
+        match self.mode:
+            case BatchMode.SM:
+                shape_lines.append(f"{BRANCH}Sequence length: {self.max_measurements_per_subject}")
+            case BatchMode.SEM:
+                shape_lines.append(f"{BRANCH}Sequence length: {self.max_events_per_subject}")
+                shape_lines.append(f"{BRANCH}Event length: {self.max_measurements_per_event}")
+
+        shape_lines.append(BRANCH)
+
+        match self.mode:
+            case BatchMode.SM:
+                shape_lines.append(f"{BRANCH}All dynamic data: {self._SM_shape}")
+            case BatchMode.SEM:
+                shape_lines.append(f"{BRANCH}Per-event data: {self._SE_shape}")
+                shape_lines.append(f"{BRANCH}Per-measurement data: {self._SEM_shape}")
+
+        if self.has_static:
+            shape_lines.append(f"{BRANCH}Static data: {self._static_shape}")
+
+        if self.has_labels:
+            shape_lines.append(f"{BRANCH}Labels: {self.boolean_value.shape}")
+        return shape_lines
+
+    def __mode_str_lines(self) -> list[str]:
+        """Gets the lines in the string representation corresponding to the mode block."""
+        mode_lines = []
+        match self.mode:
+            case BatchMode.SM:
+                mode_lines.append(f"Mode: Subject-Measurement ({self.mode})")
+            case BatchMode.SEM:
+                mode_lines.append(f"Mode: Subject-Event-Measurement ({self.mode})")
+
+        static_symbol = "✓" if self.has_static else "✗"
+        mode_lines.append(f"Static data? {static_symbol}")
+
+        labels_symbol = "✓" if self.has_labels else "✗"
+        mode_lines.append(f"Labels? {labels_symbol}")
+
+        return mode_lines
+
+    @staticmethod
+    def __str_tensor_val(tensor: torch.Tensor) -> str:
+        """Strips the `tensor(` prefix, `)` suffix, leading/trailing , and newlines."""
+
+        tensor_str = str(tensor).replace("tensor(", "       ").replace(")", "")
+        tensor_str = "\n".join([x for x in tensor_str.splitlines() if x.strip()])
+        tensor_str = textwrap.dedent(tensor_str).strip()
+        return tensor_str
+
+    def __str_tensor_list(self, header: str, tensors: list[str]) -> list[str]:
+        """Gets string representation lines for the requested tensors."""
+        out = [f"{header}:"]
+        for tensor_n in tensors:
+            tensor = getattr(self, tensor_n)
+
+            out.append(f"{BRANCH}{tensor_n} ({tensor.dtype}):")
+            tensor_str = self.__str_tensor_val(tensor)
+            out.extend(textwrap.indent(tensor_str, BRANCH + BRANCH).splitlines())
+
+        return out
+
+    def __SM_str_lines(self) -> list[str]:
+        """Gets the lines in the string representation corresponding to the SM data tensors."""
+        return self.__str_tensor_list("Dynamic", self.SM_TENSOR_NAMES)
+
+    def __SE_str_lines(self) -> list[str]:
+        """Gets the lines in the string representation corresponding to the SM data tensors."""
+        return self.__str_tensor_list("Event-level", self.SE_TENSOR_NAMES)
+
+    def __SEM_str_lines(self) -> list[str]:
+        """Gets the lines in the string representation corresponding to the SM data tensors."""
+        return self.__str_tensor_list("Measurement-level", self.SEM_TENSOR_NAMES)
+
+    def __static_str_lines(self) -> list[str]:
+        """Gets the lines in the string representation corresponding to the static data tensors."""
+        return self.__str_tensor_list("Static", self.STATIC_TENSOR_NAMES)
+
+    def __labels_str_lines(self) -> list[str]:
+        """Gets the lines in the string representation corresponding to the labels."""
+        return self.__str_tensor_list("Labels", self.LABEL_TENSOR_NAMES)
+
+    def __data_str_lines(self) -> list[str]:
+        """Gets the lines in the string representation corresponding to the data block."""
+
+        data_lines = ["Data:"]
+
+        match self.mode:
+            case BatchMode.SM:
+                data_lines.extend([f"{BRANCH}{line}" for line in self.__SM_str_lines()])
+            case BatchMode.SEM:
+                data_lines.extend([f"{BRANCH}{line}" for line in self.__SE_str_lines()])
+                data_lines.append(BRANCH)
+                data_lines.extend([f"{BRANCH}{line}" for line in self.__SEM_str_lines()])
+
+        if self.has_static:
+            data_lines.append(BRANCH)
+            data_lines.extend([f"{BRANCH}{line}" for line in self.__static_str_lines()])
+
+        if self.has_labels:
+            data_lines.append(BRANCH)
+            data_lines.extend([f"{BRANCH}{line}" for line in self.__labels_str_lines()])
+
+        return data_lines
+
+    def __str__(self) -> str:
+        """A human-readable string representation of the batch.
+
+        This is mostly designed for printing in doctests, and so avoids totally blank newlines (as those
+        generate ugly <BLANKLINE> tags in the output).
+
+
+        Examples:
+            >>> print(MEDSTorchBatch(
+            ...     time_delta_days=torch.tensor([[1.0, 2.1], [4.0, 0.0]]),
+            ...     event_mask=torch.tensor([[True, True], [True, False]]),
+            ...     code=torch.tensor([[[1, 2, 3], [3, 0, 0]], [[5, 6, 0], [0, 0, 0]]]),
+            ...     numeric_value=torch.tensor(
+            ...         [[[1.0, 0.0, -3.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]
+            ...     ),
+            ...     numeric_value_mask=torch.tensor([
+            ...         [[True, False, True], [False, False, False]],
+            ...         [[False, True, False], [True, True, True]]
+            ...     ]),
+            ... ))
+            MEDSTorchBatch:
+            │ Mode: Subject-Event-Measurement (SEM)
+            │ Static data? ✗
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length: 2
+            │ │ Event length: 3
+            │ │
+            │ │ Per-event data: (2, 2)
+            │ │ Per-measurement data: (2, 2, 3)
+            │
+            │ Data:
+            │ │ Event-level:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[1.00, 2.10],
+            │ │ │ │  [4.00, 0.00]]
+            │ │ │ event_mask (torch.bool):
+            │ │ │ │ [[ True,  True],
+            │ │ │ │  [ True, False]]
+            │ │
+            │ │ Measurement-level:
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[[1, 2, 3],
+            │ │ │ │   [3, 0, 0]],
+            │ │ │ │  [[5, 6, 0],
+            │ │ │ │   [0, 0, 0]]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[[ 1.,  0., -3.],
+            │ │ │ │   [ 0.,  0.,  0.]],
+            │ │ │ │  [[ 0.,  0.,  0.],
+            │ │ │ │   [ 0.,  0.,  0.]]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[[ True, False,  True],
+            │ │ │ │   [False, False, False]],
+            │ │ │ │  [[False,  True, False],
+            │ │ │ │   [ True,  True,  True]]]
+            >>> print(MEDSTorchBatch(
+            ...     time_delta_days=torch.tensor([[1.0, 0.0, 0.0, 2.1], [4.0, 0.0, 0.0, 0.0]]),
+            ...     code=torch.tensor([[1, 2, 3, 3], [5, 6, 0, 0]]),
+            ...     numeric_value=torch.tensor([[1.0, 0.0, -3.0, 0.0], [0.0, 0.0, 0.0, 0.0]]),
+            ...     numeric_value_mask=torch.tensor([[True, False, True, False], [False, True, False, True]]),
+            ...     static_code=torch.tensor([[1], [5]]),
+            ...     static_numeric_value=torch.tensor([[1.0], [0.0]]),
+            ...     static_numeric_value_mask=torch.tensor([[True], [True]]),
+            ...     boolean_value=torch.tensor([True, False]),
+            ... ))
+            MEDSTorchBatch:
+            │ Mode: Subject-Measurement (SM)
+            │ Static data? ✓
+            │ Labels? ✓
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length: 4
+            │ │
+            │ │ All dynamic data: (2, 4)
+            │ │ Static data: (2, 1)
+            │ │ Labels: torch.Size([2])
+            │
+            │ Data:
+            │ │ Dynamic:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[1.00, 0.00, 0.00, 2.10],
+            │ │ │ │  [4.00, 0.00, 0.00, 0.00]]
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[1, 2, 3, 3],
+            │ │ │ │  [5, 6, 0, 0]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[ 1.,  0., -3.,  0.],
+            │ │ │ │  [ 0.,  0.,  0.,  0.]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[ True, False,  True, False],
+            │ │ │ │  [False,  True, False,  True]]
+            │ │
+            │ │ Static:
+            │ │ │ static_code (torch.int64):
+            │ │ │ │ [[1],
+            │ │ │ │  [5]]
+            │ │ │ static_numeric_value (torch.float32):
+            │ │ │ │ [[1.],
+            │ │ │ │  [0.]]
+            │ │ │ static_numeric_value_mask (torch.bool):
+            │ │ │ │ [[True],
+            │ │ │ │  [True]]
+            │ │
+            │ │ Labels:
+            │ │ │ boolean_value (torch.bool):
+            │ │ │ │ [ True, False]
+        """
+
+        lines = [f"{self.__class__.__name__}:"]
+
+        torch.set_printoptions(precision=2, threshold=5, edgeitems=2)
+
+        lines.extend([f"{BRANCH}{line}" for line in self.__mode_str_lines()])
+        lines.append(BRANCH)
+        lines.extend([f"{BRANCH}{line}" for line in self.__shape_str_lines()])
+        lines.append(BRANCH)
+        lines.extend([f"{BRANCH}{line}" for line in self.__data_str_lines()])
+
+        torch.set_printoptions(profile="default")
+
+        lines = [line.rstrip() for line in lines]
+
+        return "\n".join(lines)

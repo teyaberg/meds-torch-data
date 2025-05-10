@@ -429,21 +429,20 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         )
 
         if self.config.static_inclusion_mode == StaticInclusionMode.PREPEND:
-            code_dtype = dynamic_data.schema["dim0/code"]
-            numerics_dtype = dynamic_data.schema["dim0/numeric_value"]
-            time_dtype = dynamic_data.schema["dim0/time_delta_days"]
-            time_deltas = np.ones(n_static_measurements, dtype=time_dtype) * np.nan
-
-            static_as_JNRT = JointNestedRaggedTensorDict(
-                {
-                    "time_delta_days": time_deltas,
-                    "code": np.array(static_data.code).astype(code_dtype),
-                    "numeric_value": np.array(static_data.numeric_value).astype(numerics_dtype),
-                },
-                schema=dynamic_data.schema,
-            )
             if self.config.batch_mode == BatchMode.SEM:
-                static_as_JNRT = static_as_JNRT.unsqueeze()
+                static_dict = {
+                    "time_delta_days": [np.nan],
+                    "code": [static_data.code],
+                    "numeric_value": [static_data.numeric_value],
+                }
+            else:
+                static_dict = {
+                    "time_delta_days": [np.nan for _ in range(n_static_measurements)],
+                    "code": static_data.code,
+                    "numeric_value": static_data.numeric_value,
+                }
+
+            static_as_JNRT = JointNestedRaggedTensorDict(static_dict, schema=dynamic_data.schema)
 
             dynamic_data = JointNestedRaggedTensorDict.concatenate([static_as_JNRT, dynamic_data])
 
@@ -977,12 +976,22 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 ).float()
                 out["static_numeric_value_mask"] = ~torch.isnan(static_tensorized["static_numeric_value"])
             case StaticInclusionMode.PREPEND:
-                # n_static_measurements = [item["n_static_measurements"] for item in batch]
-                raise NotImplementedError("Static inclusion mode PREPEND not yet implemented.")
-            case _:
-                raise NotImplementedError(
-                    f"Static inclusion mode {self.config.static_inclusion_mode} not implemented."
-                )
+                n_static_measurements = [item["n_static_measurements"] for item in batch]
+
+                match self.config.batch_mode:
+                    case BatchMode.SEM:
+                        static_mask = torch.zeros_like(out["event_mask"])
+                        static_mask[:, 0] = True
+                    case BatchMode.SM:
+                        static_mask = torch.arange(out["time_delta_days"].shape[1]).unsqueeze(
+                            0
+                        ) < torch.as_tensor(n_static_measurements).unsqueeze(1)
+                        static_mask = static_mask.to(
+                            device=out["numeric_value_mask"].device,
+                            dtype=out["numeric_value_mask"].dtype,
+                        )
+
+                out["static_mask"] = static_mask
 
         if self.has_task_labels:
             out[self.LABEL_COL] = torch.Tensor([item[self.LABEL_COL] for item in batch]).bool()

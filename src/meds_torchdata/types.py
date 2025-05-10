@@ -642,8 +642,14 @@ class MEDSTorchBatch:
         "static_numeric_value",
         "static_numeric_value_mask",
     )
-    SE_TENSOR_NAMES: ClassVar[tuple[str]] = ("time_delta_days", "event_mask")
-    SM_TENSOR_NAMES: ClassVar[tuple[str]] = ("time_delta_days", "code", "numeric_value", "numeric_value_mask")
+    SE_TENSOR_NAMES: ClassVar[tuple[str]] = ("time_delta_days", "event_mask", "static_mask")
+    SM_TENSOR_NAMES: ClassVar[tuple[str]] = (
+        "time_delta_days",
+        "code",
+        "numeric_value",
+        "numeric_value_mask",
+        "static_mask",
+    )
     SEM_TENSOR_NAMES: ClassVar[tuple[str]] = ("code", "numeric_value", "numeric_value_mask")
     LABEL_TENSOR_NAMES: ClassVar[tuple[str]] = ("boolean_value",)
 
@@ -704,9 +710,10 @@ class MEDSTorchBatch:
                 if self.static_numeric_value is not None or self.static_numeric_value_mask is not None:
                     raise ValueError("Static numeric value and mask should not be provided without codes!")
             case _:
-                raise NotImplementedError(
-                    f"Static inclusion mode {self.static_inclusion_mode} not implemented!"
-                )
+                if self.mode == BatchMode.SEM:
+                    self.__check_shape("static_mask", self._SE_shape)
+                elif self.mode == BatchMode.SM:
+                    self.__check_shape("static_mask", self._SM_shape)
 
         if self.has_labels:
             self.__check_shape("boolean_value", (self.batch_size,))
@@ -898,18 +905,27 @@ class MEDSTorchBatch:
         shape_lines = ["Shape:"]
 
         shape_lines.append(f"{BRANCH}Batch size: {self.batch_size}")
+
+        seq_len_n = "Sequence length"
+        if self.static_inclusion_mode == StaticInclusionMode.PREPEND:
+            seq_len_n = f"{seq_len_n} (static + dynamic)"
+
         match self.mode:
             case BatchMode.SM:
-                shape_lines.append(f"{BRANCH}Sequence length: {self.max_measurements_per_subject}")
+                shape_lines.append(f"{BRANCH}{seq_len_n}: {self.max_measurements_per_subject}")
             case BatchMode.SEM:
-                shape_lines.append(f"{BRANCH}Sequence length: {self.max_events_per_subject}")
+                shape_lines.append(f"{BRANCH}{seq_len_n}: {self.max_events_per_subject}")
                 shape_lines.append(f"{BRANCH}Event length: {self.max_measurements_per_event}")
 
         shape_lines.append(BRANCH)
 
         match self.mode:
             case BatchMode.SM:
-                shape_lines.append(f"{BRANCH}All dynamic data: {self._SM_shape}")
+                if self.static_inclusion_mode == StaticInclusionMode.PREPEND:
+                    dynamic_str = "All [static; dynamic] data"
+                else:
+                    dynamic_str = "All dynamic data"
+                shape_lines.append(f"{BRANCH}{dynamic_str}: {self._SM_shape}")
             case BatchMode.SEM:
                 shape_lines.append(f"{BRANCH}Per-event data: {self._SE_shape}")
                 shape_lines.append(f"{BRANCH}Per-measurement data: {self._SEM_shape}")
@@ -957,6 +973,8 @@ class MEDSTorchBatch:
         out = [f"{header}:"]
         for tensor_n in tensors:
             tensor = getattr(self, tensor_n)
+            if tensor is None:
+                continue
 
             out.append(f"{BRANCH}{tensor_n} ({tensor.dtype}):")
             tensor_str = self.__str_tensor_val(tensor)
@@ -966,7 +984,8 @@ class MEDSTorchBatch:
 
     def __SM_str_lines(self) -> list[str]:
         """Gets the lines in the string representation corresponding to the SM data tensors."""
-        return self.__str_tensor_list("Dynamic", self.SM_TENSOR_NAMES)
+        n = "[Static; Dynamic]" if self.static_inclusion_mode == StaticInclusionMode.PREPEND else "Dynamic"
+        return self.__str_tensor_list(n, self.SM_TENSOR_NAMES)
 
     def __SE_str_lines(self) -> list[str]:
         """Gets the lines in the string representation corresponding to the SM data tensors."""
@@ -1151,7 +1170,7 @@ class MEDSTorchBatch:
             │
             │ Shape:
             │ │ Batch size: 2
-            │ │ Sequence length (static + dynamic): 2
+            │ │ Sequence length (static + dynamic): 3
             │ │ Event length: 3
             │ │
             │ │ Per-event data: (2, 3)
@@ -1163,8 +1182,8 @@ class MEDSTorchBatch:
             │ │ │ │ [[0.00, 1.00, 2.10],
             │ │ │ │  [0.00, 4.00, 0.00]]
             │ │ │ event_mask (torch.bool):
-            │ │ │ │ [[ True, True,  True],
-            │ │ │ │  [ True, True, False]]
+            │ │ │ │ [[ True,  True,  True],
+            │ │ │ │  [ True,  True, False]]
             │ │ │ static_mask (torch.bool):
             │ │ │ │ [[ True, False, False],
             │ │ │ │  [ True, False, False]]
@@ -1262,7 +1281,7 @@ class MEDSTorchBatch:
             │
             │ Shape:
             │ │ Batch size: 2
-            │ │ Sequence length: 4
+            │ │ Sequence length (static + dynamic): 5
             │ │
             │ │ All [static; dynamic] data: (2, 5)
             │ │ Labels: torch.Size([2])
@@ -1270,20 +1289,20 @@ class MEDSTorchBatch:
             │ Data:
             │ │ [Static; Dynamic]:
             │ │ │ time_delta_days (torch.float32):
-            │ │ │ │ [[0.00, 1.00, 0.00, 0.00, 2.10],
-            │ │ │ │  [0.00, 4.00, 0.00, 0.00, 0.00]]
+            │ │ │ │ [[0.00, 1.00,  ..., 0.00, 2.10],
+            │ │ │ │  [0.00, 4.00,  ..., 0.00, 0.00]]
             │ │ │ code (torch.int64):
-            │ │ │ │ [[1, 1, 2, 3, 3],
-            │ │ │ │  [5, 5, 6, 0, 0]]
+            │ │ │ │ [[1, 1, ..., 3, 3],
+            │ │ │ │  [5, 5, ..., 0, 0]]
             │ │ │ numeric_value (torch.float32):
-            │ │ │ │ [[ 1., 1.,  0., -3.,  0.],
-            │ │ │ │  [ 0., 0.,  0.,  0.,  0.]]
+            │ │ │ │ [[ 1., 1.,  ..., -3.,  0.],
+            │ │ │ │  [ 0., 0.,  ...,  0.,  0.]]
             │ │ │ numeric_value_mask (torch.bool):
-            │ │ │ │ [[ True,  True, False,  True, False],
-            │ │ │ │  [ True, False,  True, False,  True]]
+            │ │ │ │ [[ True,  True, ...,  True, False],
+            │ │ │ │  [ True, False, ..., False,  True]]
             │ │ │ static_mask (torch.bool):
-            │ │ │ │ [[ True, False, False, False, False],
-            │ │ │ │  [ True, False, False, False, False]]
+            │ │ │ │ [[ True, False, ..., False, False],
+            │ │ │ │  [ True, False, ..., False, False]]
             │ │
             │ │ Labels:
             │ │ │ boolean_value (torch.bool):

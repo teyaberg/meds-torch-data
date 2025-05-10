@@ -837,10 +837,39 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.TO_END
             >>> raw_batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
             >>> print(sample_pytorch_dataset.collate(raw_batch))
+            MEDSTorchBatch:
+            │ Mode: Subject-Measurement (SM)
+            │ Static data? ✓ (prepended)
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length (static + dynamic): 7
+            │ │
+            │ │ All [static; dynamic] data: (2, 7)
+            │
+            │ Data:
+            │ │ [Static; Dynamic]:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[0.00, 0.00,  ..., 0.00, 0.10],
+            │ │ │ │  [0.00, 0.00,  ..., 0.00, 0.05]]
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[ 8,  9,  ..., 11,  4],
+            │ │ │ │  [ 8,  9,  ..., 11,  4]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[ 0.00, -0.54,  ..., -0.34,  0.00],
+            │ │ │ │  [ 0.00, -1.10,  ...,  0.85,  0.00]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[False,  True,  ...,  True, False],
+            │ │ │ │  [False,  True,  ...,  True, False]]
+            │ │ │ static_mask (torch.bool):
+            │ │ │ │ [[ True,  True,  ..., False, False],
+            │ │ │ │  [ True,  True,  ..., False, False]]
 
             If the batch mode is SEM, the event mask will also be included and the output shape will differ:
 
             >>> sample_pytorch_dataset.config.batch_mode = "SEM"
+            >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.OMIT
             >>> raw_batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
             >>> print(sample_pytorch_dataset.collate(raw_batch))
             MEDSTorchBatch:
@@ -945,6 +974,59 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.TO_END
             >>> raw_batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
             >>> print(sample_pytorch_dataset.collate(raw_batch))
+            MEDSTorchBatch:
+            │ Mode: Subject-Event-Measurement (SEM)
+            │ Static data? ✓ (prepended)
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length (static + dynamic): 4
+            │ │ Event length: 3
+            │ │
+            │ │ Per-event data: (2, 4)
+            │ │ Per-measurement data: (2, 4, 3)
+            │
+            │ Data:
+            │ │ Event-level:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[0.00e+00, 0.00e+00, 1.18e+04, 9.79e-02],
+            │ │ │ │  [0.00e+00, 0.00e+00, 1.24e+04, 4.64e-02]]
+            │ │ │ event_mask (torch.bool):
+            │ │ │ │ [[True, True, True, True],
+            │ │ │ │  [True, True, True, True]]
+            │ │ │ static_mask (torch.bool):
+            │ │ │ │ [[ True, False, False, False],
+            │ │ │ │  [ True, False, False, False]]
+            │ │
+            │ │ Measurement-level:
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[[ 8,  9,  0],
+            │ │ │ │   [ 5,  0,  0],
+            │ │ │ │   [ 3, 10, 11],
+            │ │ │ │   [ 4,  0,  0]],
+            │ │ │ │  [[ 8,  9,  0],
+            │ │ │ │   [ 5,  0,  0],
+            │ │ │ │   [ 2, 10, 11],
+            │ │ │ │   [ 4,  0,  0]]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[[ 0.00, -0.54,  0.00],
+            │ │ │ │   [ 0.00,  0.00,  0.00],
+            │ │ │ │   [ 0.00, -1.45, -0.34],
+            │ │ │ │   [ 0.00,  0.00,  0.00]],
+            │ │ │ │  [[ 0.00, -1.10,  0.00],
+            │ │ │ │   [ 0.00,  0.00,  0.00],
+            │ │ │ │   [ 0.00,  3.00,  0.85],
+            │ │ │ │   [ 0.00,  0.00,  0.00]]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[[False,  True,  True],
+            │ │ │ │   [False,  True,  True],
+            │ │ │ │   [False,  True,  True],
+            │ │ │ │   [False,  True,  True]],
+            │ │ │ │  [[False,  True,  True],
+            │ │ │ │   [False,  True,  True],
+            │ │ │ │   [False,  True,  True],
+            │ │ │ │   [False,  True,  True]]]
         """
 
         data = JointNestedRaggedTensorDict.vstack([item["dynamic"] for item in batch])

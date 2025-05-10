@@ -832,6 +832,13 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             │ │ │ │ [[False, False,  ...,  True, False],
             │ │ │ │  [False, False,  ...,  True, False]]
 
+            Static data can also be prepended to the dynamic data.
+
+            >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.PREPEND
+            >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.TO_END
+            >>> raw_batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
+            >>> print(sample_pytorch_dataset.collate(raw_batch))
+
             If the batch mode is SEM, the event mask will also be included and the output shape will differ:
 
             >>> sample_pytorch_dataset.config.batch_mode = "SEM"
@@ -930,6 +937,15 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             │ │ │ │  [[ True,  True, False],
             │ │ │ │   [False,  True,  True],
             │ │ │ │   [ True,  True, False]]]
+
+            In this mode, though redundant, the static mask will still be present if static data is prepended
+
+            >>> sample_pytorch_dataset.config.batch_mode = "SEM"
+            >>> sample_pytorch_dataset.config.padding_side = "right"
+            >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.PREPEND
+            >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.TO_END
+            >>> raw_batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
+            >>> print(sample_pytorch_dataset.collate(raw_batch))
         """
 
         data = JointNestedRaggedTensorDict.vstack([item["dynamic"] for item in batch])

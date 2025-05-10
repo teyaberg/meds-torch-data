@@ -10,7 +10,7 @@ from meds import DataSchema, LabelSchema
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
 from .config import MEDSTorchDataConfig, StaticInclusionMode
-from .types import MEDSTorchBatch, StaticData
+from .types import BatchMode, MEDSTorchBatch, StaticData
 
 logger = logging.getLogger(__name__)
 
@@ -417,7 +417,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                     "static_numeric_value": static_data.numeric_value,
                 }
             case StaticInclusionMode.PREPEND:
-                n_static_measurements = static_data.code.shape[1]
+                n_static_measurements = len(static_data.code)
                 out = {"n_static_measurements": n_static_measurements}
             case _:
                 raise NotImplementedError(
@@ -429,7 +429,23 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         )
 
         if self.config.static_inclusion_mode == StaticInclusionMode.PREPEND:
-            raise NotImplementedError("Static inclusion mode PREPEND not yet implemented.")
+            code_dtype = dynamic_data.schema["dim0/code"]
+            numerics_dtype = dynamic_data.schema["dim0/numeric_value"]
+            time_dtype = dynamic_data.schema["dim0/time_delta_days"]
+            time_deltas = np.ones(n_static_measurements, dtype=time_dtype) * np.nan
+
+            static_as_JNRT = JointNestedRaggedTensorDict(
+                {
+                    "time_delta_days": time_deltas,
+                    "code": np.array(static_data.code).astype(code_dtype),
+                    "numeric_value": np.array(static_data.numeric_value).astype(numerics_dtype),
+                },
+                schema=dynamic_data.schema,
+            )
+            if self.config.batch_mode == BatchMode.SEM:
+                static_as_JNRT = static_as_JNRT.unsqueeze()
+
+            dynamic_data = JointNestedRaggedTensorDict.concatenate([static_as_JNRT, dynamic_data])
 
         out["dynamic"] = dynamic_data
 
@@ -923,7 +939,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         out = {}
         out["time_delta_days"] = torch.nan_to_num(tensorized.pop("time_delta_days"), nan=0).float()
         out["code"] = tensorized.pop("code").long()
-        if self.config.batch_mode == "SEM":
+        if self.config.batch_mode == BatchMode.SEM:
             out["event_mask"] = tensorized.pop("dim1/mask")
         out["numeric_value"] = torch.nan_to_num(tensorized["numeric_value"], nan=0).float()
         out["numeric_value_mask"] = ~torch.isnan(tensorized.pop("numeric_value"))

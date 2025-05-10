@@ -189,7 +189,7 @@ and
 `StrEnum`s, respectively:
 
 - `seq_sampling_strategy`: One of `["random", "to_end", "from_start"]` (defaults to `"random"`).
-- `static_inclusion_mode`: One of `["include", "omit"]` (defaults to `"include"`).
+- `static_inclusion_mode`: One of `["include", "prepend", "omit"]` (defaults to `"include"`).
 
 File path parameters include:
 
@@ -474,6 +474,29 @@ time_delta_days
 
 ```
 
+This example shows what the output looks like if we set the static data inclusion mode to `"include"`. What if
+we set it to `"prepend"` instead?
+
+```python
+>>> pyd.config.static_inclusion_mode = "prepend"
+>>> print_element(pyd[2])
+n_static_measurements (int):
+2
+dynamic (JointNestedRaggedTensorDict):
+code
+[ 8  9  3 10 11]
+.
+numeric_value
+[        nan        -0.543823957         nan -1.4474752  -0.34049404]
+.
+time_delta_days
+[           nan           nan   1.17661045e+04 0.00000000e+00 0.00000000e+00 ]
+>>> pyd.config.static_inclusion_mode = "include"
+
+```
+
+````
+
 We can also look at what would be returned if we had included a task in the dataset:
 
 ```python
@@ -494,7 +517,7 @@ time_delta_days
 boolean_value (bool):
 False
 
-```
+````
 
 We can see in this case that the `boolean_value` field is included in the output, capturing the task label.
 

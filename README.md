@@ -770,28 +770,28 @@ MEDSTorchBatch:
 │
 │ Shape:
 │ │ Batch size: 2
-│ │ Sequence length: 5
+│ │ Sequence length (static + dynamic): 5
 │ │
-│ │ All dynamic data: (2, 5)
+│ │ All [static; dynamic] data: (2, 5)
 │ │ Labels: torch.Size([2])
 │
 │ Data:
-│ │ Dynamic:
+│ │ [Static; Dynamic]:
 │ │ │ time_delta_days (torch.float32):
-│ │ │ │ [[0.00e+00, 0.00e+00, ..., 4.83e-03, 0.00e+00],
-│ │ │ │  [0.00e+00, 0.00e+00, ..., 2.55e-02, 0.00e+00]]
+│ │ │ │ [[0.00, 0.00,  ..., 0.00, 0.00],
+│ │ │ │  [0.00, 0.00,  ..., 0.03, 0.00]]
 │ │ │ code (torch.int64):
-│ │ │ │ [[ 7, 9,  ..., 10, 11],
-│ │ │ │  [ 7, 9,  ..., 10, 11]]
+│ │ │ │ [[ 7,  9,  ..., 10, 11],
+│ │ │ │  [ 7,  9,  ..., 10, 11]]
 │ │ │ numeric_value (torch.float32):
-│ │ │ │ [[0.00e+00,  1.58e+00,  ..., -4.38e-01, -1.17e+00],
-│ │ │ │  [0.00e+00,  1.58e+00,  ...,  1.32e-03, -1.37e+00]]
+│ │ │ │ [[ 0.00e+00,  1.58e+00,  ..., -4.38e-01, -1.17e+00],
+│ │ │ │  [ 0.00e+00,  1.58e+00,  ...,  1.32e-03, -1.37e+00]]
 │ │ │ numeric_value_mask (torch.bool):
 │ │ │ │ [[False,  True,  ...,  True,  True],
 │ │ │ │  [False,  True,  ...,  True,  True]]
 │ │ │ static_mask (torch.bool):
-│ │ │ │ [[ True,  True,  ...,  False, False],
-│ │ │ │  [ True,  True,  ...,  False, False]]
+│ │ │ │ [[ True,  True,  ..., False, False],
+│ │ │ │  [ True,  True,  ..., False, False]]
 │ │
 │ │ Labels:
 │ │ │ boolean_value (torch.bool):
@@ -1017,6 +1017,70 @@ MEDSTorchBatch:
 │ │ │ │ [False,  True]
 >>> pyd_with_task.config.static_inclusion_mode = "prepend"
 >>> print(next(iter(pyd_with_task.get_dataloader(batch_size=2))))
+MEDSTorchBatch:
+│ Mode: Subject-Event-Measurement (SEM)
+│ Static data? ✓ (prepended)
+│ Labels? ✓
+│
+│ Shape:
+│ │ Batch size: 2
+│ │ Sequence length (static + dynamic): 5
+│ │ Event length: 3
+│ │
+│ │ Per-event data: (2, 5)
+│ │ Per-measurement data: (2, 5, 3)
+│ │ Labels: torch.Size([2])
+│
+│ Data:
+│ │ Event-level:
+│ │ │ time_delta_days (torch.float32):
+│ │ │ │ [[0.00, 0.00,  ..., 0.00, 0.00],
+│ │ │ │  [0.00, 0.00,  ..., 0.00, 0.03]]
+│ │ │ event_mask (torch.bool):
+│ │ │ │ [[ True,  True,  ...,  True, False],
+│ │ │ │  [ True,  True,  ...,  True,  True]]
+│ │ │ static_mask (torch.bool):
+│ │ │ │ [[ True, False,  ..., False, False],
+│ │ │ │  [ True, False,  ..., False, False]]
+│ │
+│ │ Measurement-level:
+│ │ │ code (torch.int64):
+│ │ │ │ [[[ 7,  9,  0],
+│ │ │ │   [ 5,  0,  0],
+│ │ │ │   ...,
+│ │ │ │   [10, 11,  0],
+│ │ │ │   [ 0,  0,  0]],
+│ │ │ │  [[ 7,  9,  0],
+│ │ │ │   [ 5,  0,  0],
+│ │ │ │   ...,
+│ │ │ │   [10, 11,  0],
+│ │ │ │   [10, 11,  0]]]
+│ │ │ numeric_value (torch.float32):
+│ │ │ │ [[[ 0.00e+00,  1.58e+00,  0.00e+00],
+│ │ │ │   [ 0.00e+00,  0.00e+00,  0.00e+00],
+│ │ │ │   ...,
+│ │ │ │   [-4.38e-01, -1.17e+00,  0.00e+00],
+│ │ │ │   [ 0.00e+00,  0.00e+00,  0.00e+00]],
+│ │ │ │  [[ 0.00e+00,  1.58e+00,  0.00e+00],
+│ │ │ │   [ 0.00e+00,  0.00e+00,  0.00e+00],
+│ │ │ │   ...,
+│ │ │ │   [-4.38e-01, -1.17e+00,  0.00e+00],
+│ │ │ │   [ 1.32e-03, -1.37e+00,  0.00e+00]]]
+│ │ │ numeric_value_mask (torch.bool):
+│ │ │ │ [[[False,  True,  True],
+│ │ │ │   [False,  True,  True],
+│ │ │ │   ...,
+│ │ │ │   [ True,  True,  True],
+│ │ │ │   [ True,  True,  True]],
+│ │ │ │  [[False,  True,  True],
+│ │ │ │   [False,  True,  True],
+│ │ │ │   ...,
+│ │ │ │   [ True,  True,  True],
+│ │ │ │   [ True,  True,  True]]]
+│ │
+│ │ Labels:
+│ │ │ boolean_value (torch.bool):
+│ │ │ │ [False,  True]
 
 ```
 

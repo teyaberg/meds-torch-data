@@ -419,10 +419,6 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             case StaticInclusionMode.PREPEND:
                 n_static_seq_els = len(static_data.code) if self.config.batch_mode == BatchMode.SM else 1
                 out = {"n_static_seq_els": n_static_seq_els}
-            case _:
-                raise NotImplementedError(
-                    f"Static inclusion mode {self.config.static_inclusion_mode} not implemented."
-                )
 
         dynamic_data = self.config.process_dynamic_data(
             dynamic_data, n_static_seq_els=n_static_seq_els, rng=seed

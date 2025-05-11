@@ -389,14 +389,14 @@ class MEDSTorchDataConfig:
     def process_dynamic_data(
         self,
         data: JointNestedRaggedTensorDict,
-        n_static_measurements: int | None = None,
+        n_static_seq_els: int | None = None,
         rng: np.random.Generator | int | None = None,
     ) -> JointNestedRaggedTensorDict:
         """This processes the dynamic data for a subject, including subsampling and flattening.
 
         Args:
             data: The dynamic data for the subject.
-            n_static_measurements: The number of static measurements for the given patient. This is only used
+            n_static_seq_els: The number of static measurements for the given patient. This is only used
                 if the static inclusion mode is `StaticInclusionMode.PREPEND`, in which case it must not be
                 `None`.
             rng: The random seed to use for subsequence sampling. If `None`, the default rng is used. If an
@@ -506,18 +506,13 @@ class MEDSTorchDataConfig:
         max_seq_len = self.max_seq_len
 
         if self.static_inclusion_mode == StaticInclusionMode.PREPEND:
-            if self.batch_mode == BatchMode.SEM:
-                # In SEM mode, the static measurements only take up one sequence length slot, as they all
-                # occupy one event.
-                n_static_measurements = 1
-
-            if not isinstance(n_static_measurements, int) or n_static_measurements < 0:
+            if not isinstance(n_static_seq_els, int) or n_static_seq_els <= 0:
                 raise ValueError(
                     f"When self.static_inclusion_mode={self.static_inclusion_mode}, "
-                    f"n_static_measurements must be a positive integer. Got {n_static_measurements}"
+                    f"n_static_seq_els must be a positive integer. Got {n_static_seq_els}"
                 )
 
-            max_seq_len -= n_static_measurements
+            max_seq_len -= n_static_seq_els
 
         st = self.seq_sampling_strategy.subsample_st_offset(seq_len, max_seq_len, rng=rng)
 

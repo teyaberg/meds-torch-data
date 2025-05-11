@@ -481,7 +481,7 @@ get item function, `_seeded_getitem`:
 ```python
 >>> pyd.config.static_inclusion_mode = "prepend"
 >>> print_element(pyd._seeded_getitem(2, seed=0))
-n_static_measurements (int):
+n_static_seq_els (int):
 2
 dynamic (JointNestedRaggedTensorDict):
 code

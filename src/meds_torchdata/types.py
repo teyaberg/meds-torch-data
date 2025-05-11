@@ -6,7 +6,9 @@ from dataclasses import dataclass, fields
 from enum import StrEnum
 from typing import ClassVar, NamedTuple, get_args
 
+import numpy as np
 import torch
+from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
 from .utils import SEED_OR_RNG, resolve_rng
 
@@ -136,6 +138,86 @@ class StaticData(NamedTuple):
 
     code: list[int]
     numeric_value: list[float | None]
+
+    def to_JNRT(self, batch_mode: BatchMode, schema: dict | None = None) -> JointNestedRaggedTensorDict:
+        """Converts the static data into a JointNestedRaggedTensorDict representation.
+
+        Args:
+            batch_mode: The batch mode to use for the conversion (either SEM or SM).
+            schema: The schema to use for the conversion.
+
+        Returns:
+            A JointNestedRaggedTensorDict representation of the static data, including the code, numeric
+            value, and a time delta of NaN, at the appropriate dimensionality for the given batch mode.
+
+        Raises:
+            ValueError: If the batch mode is not SEM or SM.
+
+        Examples:
+            >>> from nested_ragged_tensors.ragged_numpy import pprint_dense
+            >>> static_data = StaticData(code=[1, 2, 3], numeric_value=[1.0, 2.0, 3.0])
+            >>> pprint_dense(static_data.to_JNRT(BatchMode.SEM).to_dense())
+            time_delta_days
+            [nan]
+            .
+            ---
+            .
+            dim1/mask
+            [[ True  True  True]]
+            .
+            code
+            [[1 2 3]]
+            .
+            numeric_value
+            [[1. 2. 3.]]
+            >>> pprint_dense(static_data.to_JNRT(BatchMode.SM).to_dense())
+            code
+            [1 2 3]
+            .
+            numeric_value
+            [1. 2. 3.]
+            .
+            time_delta_days
+            [nan nan nan]
+
+        You can also pass a schema to control the types:
+
+            >>> with_schema = static_data.to_JNRT(BatchMode.SM, {"code": float, "numeric_value": int})
+            >>> pprint_dense(with_schema.to_dense())
+            code
+            [1. 2. 3.]
+            .
+            numeric_value
+            [1 2 3]
+            .
+            time_delta_days
+            [nan nan nan]
+
+        Passing an invalid batch mode will raise an error:
+
+            >>> pprint_dense(static_data.to_JNRT("foobar").to_dense())
+            Traceback (most recent call last):
+                ...
+            ValueError: Invalid batch mode foobar!
+        """
+
+        match batch_mode:
+            case BatchMode.SEM:
+                static_dict = {
+                    "time_delta_days": [np.nan],
+                    "code": [self.code],
+                    "numeric_value": [self.numeric_value],
+                }
+            case BatchMode.SM:
+                static_dict = {
+                    "time_delta_days": [np.nan for _ in range(len(self.code))],
+                    "code": self.code,
+                    "numeric_value": self.numeric_value,
+                }
+            case _:
+                raise ValueError(f"Invalid batch mode {batch_mode}!")
+
+        return JointNestedRaggedTensorDict(static_dict, schema=schema)
 
 
 @dataclass
@@ -709,11 +791,13 @@ class MEDSTorchBatch:
             case StaticInclusionMode.OMIT:
                 if self.static_numeric_value is not None or self.static_numeric_value_mask is not None:
                     raise ValueError("Static numeric value and mask should not be provided without codes!")
-            case _:
+            case StaticInclusionMode.PREPEND:
                 if self.mode == BatchMode.SEM:
                     self.__check_shape("static_mask", self._SE_shape)
                 elif self.mode == BatchMode.SM:
                     self.__check_shape("static_mask", self._SM_shape)
+            case _:  # pragma: no cover
+                raise ValueError(f"Invalid static inclusion mode {self.static_inclusion_mode}!")
 
         if self.has_labels:
             self.__check_shape("boolean_value", (self.batch_size,))

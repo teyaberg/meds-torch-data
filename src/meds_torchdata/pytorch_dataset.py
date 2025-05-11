@@ -409,41 +409,27 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         match self.config.static_inclusion_mode:
             case StaticInclusionMode.OMIT:
                 out = {}
-                n_static_measurements = None
+                n_static_seq_els = None
             case StaticInclusionMode.INCLUDE:
-                n_static_measurements = None
+                n_static_seq_els = None
                 out = {
                     "static_code": static_data.code,
                     "static_numeric_value": static_data.numeric_value,
                 }
             case StaticInclusionMode.PREPEND:
-                n_static_measurements = len(static_data.code)
-                out = {"n_static_measurements": n_static_measurements}
+                n_static_seq_els = len(static_data.code) if self.config.batch_mode == BatchMode.SM else 1
+                out = {"n_static_seq_els": n_static_seq_els}
             case _:
                 raise NotImplementedError(
                     f"Static inclusion mode {self.config.static_inclusion_mode} not implemented."
                 )
 
         dynamic_data = self.config.process_dynamic_data(
-            dynamic_data, n_static_measurements=n_static_measurements, rng=seed
+            dynamic_data, n_static_seq_els=n_static_seq_els, rng=seed
         )
 
         if self.config.static_inclusion_mode == StaticInclusionMode.PREPEND:
-            if self.config.batch_mode == BatchMode.SEM:
-                static_dict = {
-                    "time_delta_days": [np.nan],
-                    "code": [static_data.code],
-                    "numeric_value": [static_data.numeric_value],
-                }
-            else:
-                static_dict = {
-                    "time_delta_days": [np.nan for _ in range(n_static_measurements)],
-                    "code": static_data.code,
-                    "numeric_value": static_data.numeric_value,
-                }
-
-            static_as_JNRT = JointNestedRaggedTensorDict(static_dict, schema=dynamic_data.schema)
-
+            static_as_JNRT = static_data.to_JNRT(self.config.batch_mode, dynamic_data.schema)
             dynamic_data = JointNestedRaggedTensorDict.concatenate([static_as_JNRT, dynamic_data])
 
         out["dynamic"] = dynamic_data
@@ -1058,7 +1044,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                 ).float()
                 out["static_numeric_value_mask"] = ~torch.isnan(static_tensorized["static_numeric_value"])
             case StaticInclusionMode.PREPEND:
-                n_static_measurements = [item["n_static_measurements"] for item in batch]
+                n_static_seq_els = [item["n_static_seq_els"] for item in batch]
 
                 match self.config.batch_mode:
                     case BatchMode.SEM:
@@ -1067,7 +1053,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                     case BatchMode.SM:
                         static_mask = torch.arange(out["time_delta_days"].shape[1]).unsqueeze(
                             0
-                        ) < torch.as_tensor(n_static_measurements).unsqueeze(1)
+                        ) < torch.as_tensor(n_static_seq_els).unsqueeze(1)
                         static_mask = static_mask.to(
                             device=out["numeric_value_mask"].device,
                             dtype=out["numeric_value_mask"].dtype,

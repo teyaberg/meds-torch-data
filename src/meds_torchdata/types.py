@@ -1064,7 +1064,7 @@ class MEDSTorchBatch:
         ...     event_mask=torch.tensor([[True, True]]),
         ... )
 
-    If you provide static data, you must provide both the static code and numeric value tensors:
+    If you provide static data explicitly, you must provide both the static code and numeric value tensors:
 
         >>> batch = MEDSTorchBatch(
         ...     code=torch.tensor([[[1, 2], [3, 0]]]),
@@ -1091,6 +1091,36 @@ class MEDSTorchBatch:
         Traceback (most recent call last):
             ...
         ValueError: Static numeric value and mask should not be provided without codes!
+
+    You can't provide both static codes/values (for include mode) and static masks (for prepend mode):
+
+        >>> batch = MEDSTorchBatch(
+        ...     code=torch.tensor([[[1, 2], [3, 0]]]),
+        ...     numeric_value=torch.tensor([[[1., 0.], [0., 0.]]]),
+        ...     numeric_value_mask=torch.tensor([[[True, False], [False, False]]]),
+        ...     time_delta_days=torch.tensor([[1., 2.]]),
+        ...     event_mask=torch.tensor([[True, True]]),
+        ...     static_mask=torch.tensor([[True, True]]),
+        ...     static_code=torch.tensor([1, 2]),
+        ...     static_numeric_value=torch.tensor([1., 2.]),
+        ...     static_numeric_value_mask=torch.tensor([True, True]),
+        ... )
+        Traceback (most recent call last):
+            ...
+        ValueError: Static mask should not be provided if static codes are!
+        >>> batch = MEDSTorchBatch(
+        ...     code=torch.tensor([[[1, 2], [3, 0]]]),
+        ...     numeric_value=torch.tensor([[[1., 0.], [0., 0.]]]),
+        ...     numeric_value_mask=torch.tensor([[[True, False], [False, False]]]),
+        ...     time_delta_days=torch.tensor([[1., 2.]]),
+        ...     event_mask=torch.tensor([[True, True]]),
+        ...     static_mask=torch.tensor([[True, True]]),
+        ...     static_numeric_value=torch.tensor([1., 2.]),
+        ...     static_numeric_value_mask=torch.tensor([True, True]),
+        ... )
+        Traceback (most recent call last):
+            ...
+        ValueError: Static numeric value and mask should not be provided with static mask!
 
     Static data tensors must also be provided with consistent shapes, both internally and with respect to
     the other tensors in that the batch size must be conserved.
@@ -1255,6 +1285,8 @@ class MEDSTorchBatch:
 
         match self.static_inclusion_mode:
             case StaticInclusionMode.INCLUDE:
+                if self.static_mask is not None:
+                    raise ValueError("Static mask should not be provided if static codes are!")
                 if self.static_numeric_value is None or self.static_numeric_value_mask is None:
                     raise ValueError(
                         "Static numeric value and mask must both be provided if static codes are!"
@@ -1270,6 +1302,8 @@ class MEDSTorchBatch:
                 if self.static_numeric_value is not None or self.static_numeric_value_mask is not None:
                     raise ValueError("Static numeric value and mask should not be provided without codes!")
             case StaticInclusionMode.PREPEND:
+                if self.static_numeric_value is not None or self.static_numeric_value_mask is not None:
+                    raise ValueError("Static numeric value and mask should not be provided with static mask!")
                 if self.mode == BatchMode.SEM:
                     self.__check_shape("static_mask", self._SE_shape)
                 elif self.mode == BatchMode.SM:

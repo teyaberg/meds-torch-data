@@ -28,6 +28,7 @@ def _setup_doctest_namespace(
     sample_dataset_config_with_task: MEDSTorchDataConfig,
     sample_pytorch_dataset: MEDSPytorchDataset,
     sample_pytorch_dataset_with_task: MEDSPytorchDataset,
+    sample_pytorch_dataset_with_index: MEDSPytorchDataset,
     tensorized_MEDS_dataset: Path,
     tensorized_MEDS_dataset_with_task: Path,
     simple_static_MEDS: Path,
@@ -45,5 +46,6 @@ def _setup_doctest_namespace(
             "sample_dataset_config_with_task": sample_dataset_config_with_task,
             "sample_pytorch_dataset": sample_pytorch_dataset,
             "sample_pytorch_dataset_with_task": sample_pytorch_dataset_with_task,
+            "sample_pytorch_dataset_with_index": sample_pytorch_dataset_with_index,
         }
     )

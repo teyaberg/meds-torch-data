@@ -389,12 +389,16 @@ class MEDSTorchDataConfig:
     def process_dynamic_data(
         self,
         data: JointNestedRaggedTensorDict,
+        n_static_seq_els: int | None = None,
         rng: np.random.Generator | int | None = None,
     ) -> JointNestedRaggedTensorDict:
         """This processes the dynamic data for a subject, including subsampling and flattening.
 
         Args:
             data: The dynamic data for the subject.
+            n_static_seq_els: The number of static measurements for the given patient. This is only used
+                if the static inclusion mode is `StaticInclusionMode.PREPEND`, in which case it must not be
+                `None`.
             rng: The random seed to use for subsequence sampling. If `None`, the default rng is used. If an
                 integer, a new rng is created with that seed.
 
@@ -429,6 +433,45 @@ class MEDSTorchDataConfig:
              [60  0  0  0]
              [70 71 72 73]]
 
+            We can also pass the number of sequence elements that should be reserved for static sequence
+            elements to functionally reduce the effective max sequence length we select among the dynamic
+            data. This is only used in `StaticInclusionMode.PREPEND` mode, and is ignored otherwise (without
+            an error being raised!). Note that the reserved sequence element only affects the first
+            (sequential) dimension of the nested ragged tensor.
+
+            >>> pprint_dense(cfg.process_dynamic_data(data, n_static_seq_els=1).to_dense())
+            time_delta
+            [5 6 7]
+            .
+            ---
+            .
+            dim1/mask
+            [[ True  True  True False]
+             [ True False False False]
+             [ True  True  True  True]]
+            .
+            code
+            [[50 51 52  0]
+             [60  0  0  0]
+             [70 71 72 73]]
+            >>> cfg = MEDSTorchDataConfig(
+            ...     ".", max_seq_len=3, seq_sampling_strategy="to_end", batch_mode="SEM",
+            ...     static_inclusion_mode="prepend"
+            ... )
+            >>> pprint_dense(cfg.process_dynamic_data(data, n_static_seq_els=1).to_dense())
+            time_delta
+            [6 7]
+            .
+            ---
+            .
+            dim1/mask
+            [[ True False False False]
+             [ True  True  True  True]]
+            .
+            code
+            [[60  0  0  0]
+             [70 71 72 73]]
+
             If we flatten the tensors, then we get only 1D tensors for both, and the time elements that are
             added to account for the longer length are imputed to zero. Note we've increased the `max_seq_len`
             to 5 to show some non-imputed time-deltas.
@@ -440,6 +483,16 @@ class MEDSTorchDataConfig:
             .
             time_delta
             [6 7 0 0 0]
+            >>> cfg = MEDSTorchDataConfig(
+            ...     ".", max_seq_len=5, seq_sampling_strategy="to_end",
+            ...     static_inclusion_mode="prepend"
+            ... )
+            >>> pprint_dense(cfg.process_dynamic_data(data, n_static_seq_els=3).to_dense())
+            code
+            [72 73]
+            .
+            time_delta
+            [0 0]
 
             If we sample from the start, we'll just grab the first three elements.
 
@@ -493,16 +546,38 @@ class MEDSTorchDataConfig:
             .
             time_delta
             [0 6 7]
+
+        If we pass in an invalid number of static sequence elements to reserve, we get an error.
+
+            >>> cfg = MEDSTorchDataConfig(
+            ...     ".", max_seq_len=3, seq_sampling_strategy="random", static_inclusion_mode="prepend"
+            ... )
+            >>> cfg.process_dynamic_data(data, n_static_seq_els=0)
+            Traceback (most recent call last):
+                ...
+            ValueError: When self.static_inclusion_mode=prepend, n_static_seq_els must be a positive integer.
+                Got 0
         """
 
         if self.batch_mode == BatchMode.SM:
             data = data.flatten()
 
         seq_len = len(data)
-        st = self.seq_sampling_strategy.subsample_st_offset(seq_len, self.max_seq_len, rng=rng)
+        max_seq_len = self.max_seq_len
+
+        if self.static_inclusion_mode == StaticInclusionMode.PREPEND:
+            if not isinstance(n_static_seq_els, int) or n_static_seq_els <= 0:
+                raise ValueError(
+                    f"When self.static_inclusion_mode={self.static_inclusion_mode}, "
+                    f"n_static_seq_els must be a positive integer. Got {n_static_seq_els}"
+                )
+
+            max_seq_len -= n_static_seq_els
+
+        st = self.seq_sampling_strategy.subsample_st_offset(seq_len, max_seq_len, rng=rng)
 
         if st is None:
             st = 0
 
-        end = min(seq_len, st + self.max_seq_len)
+        end = min(seq_len, st + max_seq_len)
         return data[st:end]

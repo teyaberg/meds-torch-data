@@ -10,7 +10,7 @@ from meds import DataSchema, LabelSchema
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
 from .config import MEDSTorchDataConfig, StaticInclusionMode
-from .types import MEDSTorchBatch, StaticData
+from .types import BatchMode, MEDSTorchBatch, StaticData
 
 logger = logging.getLogger(__name__)
 
@@ -406,12 +406,29 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         subject_id, end_idx = self.index[idx]
         dynamic_data, static_data = self.load_subject_data(subject_id=subject_id, st=0, end=end_idx)
 
-        out = {
-            "static_code": static_data.code,
-            "static_numeric_value": static_data.numeric_value,
-        }
+        match self.config.static_inclusion_mode:
+            case StaticInclusionMode.OMIT:
+                out = {}
+                n_static_seq_els = None
+            case StaticInclusionMode.INCLUDE:
+                n_static_seq_els = None
+                out = {
+                    "static_code": static_data.code,
+                    "static_numeric_value": static_data.numeric_value,
+                }
+            case StaticInclusionMode.PREPEND:
+                n_static_seq_els = len(static_data.code) if self.config.batch_mode == BatchMode.SM else 1
+                out = {"n_static_seq_els": n_static_seq_els}
 
-        out["dynamic"] = self.config.process_dynamic_data(dynamic_data, rng=seed)
+        dynamic_data = self.config.process_dynamic_data(
+            dynamic_data, n_static_seq_els=n_static_seq_els, rng=seed
+        )
+
+        if self.config.static_inclusion_mode == StaticInclusionMode.PREPEND:
+            static_as_JNRT = static_data.to_JNRT(self.config.batch_mode, dynamic_data.schema)
+            dynamic_data = JointNestedRaggedTensorDict.concatenate([static_as_JNRT, dynamic_data])
+
+        out["dynamic"] = dynamic_data
 
         if self.has_task_labels:
             out[self.LABEL_COL] = self.labels[idx]
@@ -796,9 +813,45 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             │ │ │ │ [[False, False,  ...,  True, False],
             │ │ │ │  [False, False,  ...,  True, False]]
 
+            Static data can also be prepended to the dynamic data.
+
+            >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.PREPEND
+            >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.TO_END
+            >>> raw_batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
+            >>> print(sample_pytorch_dataset.collate(raw_batch))
+            MEDSTorchBatch:
+            │ Mode: Subject-Measurement (SM)
+            │ Static data? ✓ (prepended)
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length (static + dynamic): 7
+            │ │
+            │ │ All [static; dynamic] data: (2, 7)
+            │
+            │ Data:
+            │ │ [Static; Dynamic]:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[0.00, 0.00,  ..., 0.00, 0.10],
+            │ │ │ │  [0.00, 0.00,  ..., 0.00, 0.05]]
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[ 8,  9,  ..., 11,  4],
+            │ │ │ │  [ 8,  9,  ..., 11,  4]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[ 0.00, -0.54,  ..., -0.34,  0.00],
+            │ │ │ │  [ 0.00, -1.10,  ...,  0.85,  0.00]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[False,  True,  ...,  True, False],
+            │ │ │ │  [False,  True,  ...,  True, False]]
+            │ │ │ static_mask (torch.bool):
+            │ │ │ │ [[ True,  True,  ..., False, False],
+            │ │ │ │  [ True,  True,  ..., False, False]]
+
             If the batch mode is SEM, the event mask will also be included and the output shape will differ:
 
             >>> sample_pytorch_dataset.config.batch_mode = "SEM"
+            >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.OMIT
             >>> raw_batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
             >>> print(sample_pytorch_dataset.collate(raw_batch))
             MEDSTorchBatch:
@@ -894,6 +947,68 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             │ │ │ │  [[ True,  True, False],
             │ │ │ │   [False,  True,  True],
             │ │ │ │   [ True,  True, False]]]
+
+            In this mode, though redundant, the static mask will still be present if static data is prepended
+
+            >>> sample_pytorch_dataset.config.batch_mode = "SEM"
+            >>> sample_pytorch_dataset.config.padding_side = "right"
+            >>> sample_pytorch_dataset.config.static_inclusion_mode = StaticInclusionMode.PREPEND
+            >>> sample_pytorch_dataset.config.seq_sampling_strategy = SubsequenceSamplingStrategy.TO_END
+            >>> raw_batch = [sample_pytorch_dataset[2], sample_pytorch_dataset[3]]
+            >>> print(sample_pytorch_dataset.collate(raw_batch))
+            MEDSTorchBatch:
+            │ Mode: Subject-Event-Measurement (SEM)
+            │ Static data? ✓ (prepended)
+            │ Labels? ✗
+            │
+            │ Shape:
+            │ │ Batch size: 2
+            │ │ Sequence length (static + dynamic): 4
+            │ │ Event length: 3
+            │ │
+            │ │ Per-event data: (2, 4)
+            │ │ Per-measurement data: (2, 4, 3)
+            │
+            │ Data:
+            │ │ Event-level:
+            │ │ │ time_delta_days (torch.float32):
+            │ │ │ │ [[0.00e+00, 0.00e+00, 1.18e+04, 9.79e-02],
+            │ │ │ │  [0.00e+00, 0.00e+00, 1.24e+04, 4.64e-02]]
+            │ │ │ event_mask (torch.bool):
+            │ │ │ │ [[True, True, True, True],
+            │ │ │ │  [True, True, True, True]]
+            │ │ │ static_mask (torch.bool):
+            │ │ │ │ [[ True, False, False, False],
+            │ │ │ │  [ True, False, False, False]]
+            │ │
+            │ │ Measurement-level:
+            │ │ │ code (torch.int64):
+            │ │ │ │ [[[ 8,  9,  0],
+            │ │ │ │   [ 5,  0,  0],
+            │ │ │ │   [ 3, 10, 11],
+            │ │ │ │   [ 4,  0,  0]],
+            │ │ │ │  [[ 8,  9,  0],
+            │ │ │ │   [ 5,  0,  0],
+            │ │ │ │   [ 2, 10, 11],
+            │ │ │ │   [ 4,  0,  0]]]
+            │ │ │ numeric_value (torch.float32):
+            │ │ │ │ [[[ 0.00, -0.54,  0.00],
+            │ │ │ │   [ 0.00,  0.00,  0.00],
+            │ │ │ │   [ 0.00, -1.45, -0.34],
+            │ │ │ │   [ 0.00,  0.00,  0.00]],
+            │ │ │ │  [[ 0.00, -1.10,  0.00],
+            │ │ │ │   [ 0.00,  0.00,  0.00],
+            │ │ │ │   [ 0.00,  3.00,  0.85],
+            │ │ │ │   [ 0.00,  0.00,  0.00]]]
+            │ │ │ numeric_value_mask (torch.bool):
+            │ │ │ │ [[[False,  True,  True],
+            │ │ │ │   [False,  True,  True],
+            │ │ │ │   [False,  True,  True],
+            │ │ │ │   [False,  True,  True]],
+            │ │ │ │  [[False,  True,  True],
+            │ │ │ │   [False,  True,  True],
+            │ │ │ │   [False,  True,  True],
+            │ │ │ │   [False,  True,  True]]]
         """
 
         data = JointNestedRaggedTensorDict.vstack([item["dynamic"] for item in batch])
@@ -903,7 +1018,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         out = {}
         out["time_delta_days"] = torch.nan_to_num(tensorized.pop("time_delta_days"), nan=0).float()
         out["code"] = tensorized.pop("code").long()
-        if self.config.batch_mode == "SEM":
+        if self.config.batch_mode == BatchMode.SEM:
             out["event_mask"] = tensorized.pop("dim1/mask")
         out["numeric_value"] = torch.nan_to_num(tensorized["numeric_value"], nan=0).float()
         out["numeric_value_mask"] = ~torch.isnan(tensorized.pop("numeric_value"))
@@ -924,6 +1039,23 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
                     static_tensorized["static_numeric_value"], nan=0
                 ).float()
                 out["static_numeric_value_mask"] = ~torch.isnan(static_tensorized["static_numeric_value"])
+            case StaticInclusionMode.PREPEND:
+                n_static_seq_els = [item["n_static_seq_els"] for item in batch]
+
+                match self.config.batch_mode:
+                    case BatchMode.SEM:
+                        static_mask = torch.zeros_like(out["event_mask"])
+                        static_mask[:, 0] = True
+                    case BatchMode.SM:
+                        static_mask = torch.arange(out["time_delta_days"].shape[1]).unsqueeze(
+                            0
+                        ) < torch.as_tensor(n_static_seq_els).unsqueeze(1)
+                        static_mask = static_mask.to(
+                            device=out["numeric_value_mask"].device,
+                            dtype=out["numeric_value_mask"].dtype,
+                        )
+
+                out["static_mask"] = static_mask
 
         if self.has_task_labels:
             out[self.LABEL_COL] = torch.Tensor([item[self.LABEL_COL] for item in batch]).bool()

@@ -395,7 +395,461 @@ class MEDSTorchBatch:
         >>> print(batch.max_static_measurements_per_subject)
         None
 
-    The batch can also be constructed with static data and labels, and in SM mode instead of SEM mode:
+    Batches exist in one of several combinations of modes across the "batch mode" and the "static data
+    inclusion mode". Batch mode can either be `BatchMode.SEM`/`"SEM"` or `BatchMode.SM`/`"SM"`, and static
+    data inclusion mode can be `StaticInclusionMode.PREPEND`/`"prepend"`,
+    `StaticInclusionMode.INCLUDE`/`"include"`, or `StaticInclusionMode.OMIT`/`"omit"`. The batch mode reflects
+    the shape of the batch's elements (being either organized at an event X measurement level vs. at a
+    measurement level) and the static data inclusion mode reflects how static data is included in the batch.
+
+    > [!NOTE]
+    > These modes are determined _implicitly_ by the organization of the data in the batch, not explicitly via
+    > passed flags or anything.
+
+    The batch comes with a useful print representation function that clearly indicates what modes the batch is
+    in, which we can use below:
+
+    ### Subject-Event-Measurement (SEM) Mode
+    In SEM mode, the batch is organized as a tensor of measurements per event per subject, indicated by a 3D
+    structure of the batch's main data elements (codes and numeric values).
+
+    #### Static Data `OMIT`/`"omit"` Mode
+    In this mode, no static data is included.
+
+        >>> batch = MEDSTorchBatch(
+        ...     time_delta_days=torch.tensor([[1.0, 2.1], [4.0, 0.2]]),
+        ...     event_mask=torch.tensor([[True, True], [True, False]]),
+        ...     code=torch.tensor([[[1, 2, 3], [3, 0, 0]], [[5, 6, 0], [0, 0, 0]]]),
+        ...     numeric_value=torch.tensor(
+        ...         [[[1.0, 0.0, -3.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]
+        ...     ),
+        ...     numeric_value_mask=torch.tensor([
+        ...         [[True, False, True], [False, False, False]],
+        ...         [[False, True, False], [True, True, True]]
+        ...     ]),
+        ... )
+        >>> print(batch)
+        MEDSTorchBatch:
+        │ Mode: Subject-Event-Measurement (SEM)
+        │ Static data? ✗
+        │ Labels? ✗
+        │
+        │ Shape:
+        │ │ Batch size: 2
+        │ │ Sequence length: 2
+        │ │ Event length: 3
+        │ │
+        │ │ Per-event data: (2, 2)
+        │ │ Per-measurement data: (2, 2, 3)
+        │
+        │ Data:
+        │ │ Event-level:
+        │ │ │ time_delta_days (torch.float32):
+        │ │ │ │ [[1.00, 2.10],
+        │ │ │ │  [4.00, 0.20]]
+        │ │ │ event_mask (torch.bool):
+        │ │ │ │ [[ True,  True],
+        │ │ │ │  [ True, False]]
+        │ │
+        │ │ Measurement-level:
+        │ │ │ code (torch.int64):
+        │ │ │ │ [[[1, 2, 3],
+        │ │ │ │   [3, 0, 0]],
+        │ │ │ │  [[5, 6, 0],
+        │ │ │ │   [0, 0, 0]]]
+        │ │ │ numeric_value (torch.float32):
+        │ │ │ │ [[[ 1.,  0., -3.],
+        │ │ │ │   [ 0.,  0.,  0.]],
+        │ │ │ │  [[ 0.,  0.,  0.],
+        │ │ │ │   [ 0.,  0.,  0.]]]
+        │ │ │ numeric_value_mask (torch.bool):
+        │ │ │ │ [[[ True, False,  True],
+        │ │ │ │   [False, False, False]],
+        │ │ │ │  [[False,  True, False],
+        │ │ │ │   [ True,  True,  True]]]
+        >>> print(batch.mode)
+        SEM
+        >>> print(batch.static_inclusion_mode)
+        omit
+        >>> print(batch.has_labels)
+        False
+        >>> print(batch.batch_size)
+        2
+        >>> print(batch.max_events_per_subject)
+        2
+        >>> print(batch.max_measurements_per_event)
+        3
+        >>> print(batch.max_measurements_per_subject)
+        None
+        >>> print(batch.max_static_measurements_per_subject)
+        None
+
+    #### Static Data `INCLUDE`/`"include"` Mode
+    In this mode, static data is included as separate keys (the presence of such keys is the indicator that
+    the batch is in this static data inclusion mode).
+
+        >>> batch = MEDSTorchBatch(
+        ...     time_delta_days=torch.tensor([[1.0, 2.1], [4.0, 0.2]]),
+        ...     event_mask=torch.tensor([[True, True], [True, False]]),
+        ...     code=torch.tensor([[[1, 2, 3], [3, 0, 0]], [[5, 6, 0], [0, 0, 0]]]),
+        ...     numeric_value=torch.tensor(
+        ...         [[[1.0, 0.0, -3.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]
+        ...     ),
+        ...     numeric_value_mask=torch.tensor([
+        ...         [[True, False, True], [False, False, False]],
+        ...         [[False, True, False], [True, True, True]]
+        ...     ]),
+        ...     static_code=torch.tensor([[10], [9]]),
+        ...     static_numeric_value=torch.tensor([[0.], [0.]]),
+        ...     static_numeric_value_mask=torch.tensor([[False], [False]]),
+        ... )
+        >>> print(batch)
+        MEDSTorchBatch:
+        │ Mode: Subject-Event-Measurement (SEM)
+        │ Static data? ✓
+        │ Labels? ✗
+        │
+        │ Shape:
+        │ │ Batch size: 2
+        │ │ Sequence length: 2
+        │ │ Event length: 3
+        │ │
+        │ │ Per-event data: (2, 2)
+        │ │ Per-measurement data: (2, 2, 3)
+        │ │ Static data: (2, 1)
+        │
+        │ Data:
+        │ │ Event-level:
+        │ │ │ time_delta_days (torch.float32):
+        │ │ │ │ [[1.00, 2.10],
+        │ │ │ │  [4.00, 0.20]]
+        │ │ │ event_mask (torch.bool):
+        │ │ │ │ [[ True,  True],
+        │ │ │ │  [ True, False]]
+        │ │
+        │ │ Measurement-level:
+        │ │ │ code (torch.int64):
+        │ │ │ │ [[[1, 2, 3],
+        │ │ │ │   [3, 0, 0]],
+        │ │ │ │  [[5, 6, 0],
+        │ │ │ │   [0, 0, 0]]]
+        │ │ │ numeric_value (torch.float32):
+        │ │ │ │ [[[ 1.,  0., -3.],
+        │ │ │ │   [ 0.,  0.,  0.]],
+        │ │ │ │  [[ 0.,  0.,  0.],
+        │ │ │ │   [ 0.,  0.,  0.]]]
+        │ │ │ numeric_value_mask (torch.bool):
+        │ │ │ │ [[[ True, False,  True],
+        │ │ │ │   [False, False, False]],
+        │ │ │ │  [[False,  True, False],
+        │ │ │ │   [ True,  True,  True]]]
+        │ │
+        │ │ Static:
+        │ │ │ static_code (torch.int64):
+        │ │ │ │ [[10],
+        │ │ │ │  [ 9]]
+        │ │ │ static_numeric_value (torch.float32):
+        │ │ │ │ [[0.],
+        │ │ │ │  [0.]]
+        │ │ │ static_numeric_value_mask (torch.bool):
+        │ │ │ │ [[False],
+        │ │ │ │  [False]]
+        >>> print(batch.mode)
+        SEM
+        >>> print(batch.static_inclusion_mode)
+        include
+        >>> print(batch.has_labels)
+        False
+        >>> print(batch.batch_size)
+        2
+        >>> print(batch.max_events_per_subject)
+        2
+        >>> print(batch.max_measurements_per_event)
+        3
+        >>> print(batch.max_measurements_per_subject)
+        None
+        >>> print(batch.max_static_measurements_per_subject)
+        1
+
+    #### Static Data `PREPEND`/`"prepend"` Mode
+    In this mode, static data is prepended to the beginning of the sequence of dynamic data. They will not be
+    separated out into their own keys, and some static data specific properties will raise errors, as
+    determining their values are not currently supported in these modes (please raise an issue if you need
+    this functionality). This mode is indicated by the presence of the `static_mask` tensor in the batch.
+    Time-deltas for static events will be 0, and the `event_mask` will be `True`.
+
+        >>> batch = MEDSTorchBatch(
+        ...     time_delta_days=torch.tensor([[0.0, 1.0, 2.1], [0.0, 4.0, 0.2]]),
+        ...     event_mask=torch.tensor([[True, True, True], [True, True, False]]),
+        ...     static_mask=torch.tensor([[True, False, False], [True, False, False]]),
+        ...     code=torch.tensor([[[10, 0, 0], [1, 2, 3], [3, 0, 0]], [[9, 0, 0], [5, 6, 0], [0, 0, 0]]]),
+        ...     numeric_value=torch.tensor(
+        ...         [[[0., 0., 0.], [1., 0., -3.], [0., 0., 0.]], [[0., 0., 0.], [0., 0., 0.], [0., 0., 0.]]]
+        ...     ),
+        ...     numeric_value_mask=torch.tensor([
+        ...         [[False, True, False], [True, False, True], [False, False, False]],
+        ...         [[False, True, False], [False, True, False], [True, True, True]]
+        ...     ]),
+        ... )
+        >>> print(batch)
+        MEDSTorchBatch:
+        │ Mode: Subject-Event-Measurement (SEM)
+        │ Static data? ✓ (prepended)
+        │ Labels? ✗
+        │
+        │ Shape:
+        │ │ Batch size: 2
+        │ │ Sequence length (static + dynamic): 3
+        │ │ Event length: 3
+        │ │
+        │ │ Per-event data: (2, 3)
+        │ │ Per-measurement data: (2, 3, 3)
+        │
+        │ Data:
+        │ │ Event-level:
+        │ │ │ time_delta_days (torch.float32):
+        │ │ │ │ [[0.00, 1.00, 2.10],
+        │ │ │ │  [0.00, 4.00, 0.20]]
+        │ │ │ event_mask (torch.bool):
+        │ │ │ │ [[ True,  True,  True],
+        │ │ │ │  [ True,  True, False]]
+        │ │ │ static_mask (torch.bool):
+        │ │ │ │ [[ True, False, False],
+        │ │ │ │  [ True, False, False]]
+        │ │
+        │ │ Measurement-level:
+        │ │ │ code (torch.int64):
+        │ │ │ │ [[[10,  0,  0],
+        │ │ │ │   [ 1,  2,  3],
+        │ │ │ │   [ 3,  0,  0]],
+        │ │ │ │  [[ 9,  0,  0],
+        │ │ │ │   [ 5,  6,  0],
+        │ │ │ │   [ 0,  0,  0]]]
+        │ │ │ numeric_value (torch.float32):
+        │ │ │ │ [[[ 0.,  0.,  0.],
+        │ │ │ │   [ 1.,  0., -3.],
+        │ │ │ │   [ 0.,  0.,  0.]],
+        │ │ │ │  [[ 0.,  0.,  0.],
+        │ │ │ │   [ 0.,  0.,  0.],
+        │ │ │ │   [ 0.,  0.,  0.]]]
+        │ │ │ numeric_value_mask (torch.bool):
+        │ │ │ │ [[[False,  True, False],
+        │ │ │ │   [ True, False,  True],
+        │ │ │ │   [False, False, False]],
+        │ │ │ │  [[False,  True, False],
+        │ │ │ │   [False,  True, False],
+        │ │ │ │   [ True,  True,  True]]]
+        >>> print(batch.mode)
+        SEM
+        >>> print(batch.static_inclusion_mode)
+        prepend
+        >>> print(batch.has_labels)
+        False
+        >>> print(batch.batch_size)
+        2
+        >>> print(batch.max_events_per_subject)
+        3
+        >>> print(batch.max_measurements_per_event)
+        3
+        >>> print(batch.max_measurements_per_subject)
+        None
+        >>> batch.max_static_measurements_per_subject
+        Traceback (most recent call last):
+            ...
+        ValueError: This is not supported in PREPEND mode as it requires a computation
+
+    ### Subject-Measurement (SM) Mode
+    In SM mode, the batch is organized as a tensor of measurements per subject, indicated by a 2D
+    structure of the batch's main data elements (codes and numeric values).
+
+    #### Static Data `OMIT`/`"omit"` Mode
+    In this mode, no static data is included.
+
+        >>> batch = MEDSTorchBatch(
+        ...     code=torch.tensor([[1, 2, 3, 3], [5, 6, 0, 0]]),
+        ...     numeric_value=torch.tensor([[1.0, 0.0, -3.0, 0.0], [0.0, 0.0, 0.0, 0.0]]),
+        ...     numeric_value_mask=torch.tensor([[True, False, True, False], [False, True, False, True]]),
+        ...     time_delta_days=torch.tensor([[1.0, 0.0, 0.0, 2.0], [4.0, 0.0, 0.0, 0.0]]),
+        ... )
+        >>> print(batch)
+        MEDSTorchBatch:
+        │ Mode: Subject-Measurement (SM)
+        │ Static data? ✗
+        │ Labels? ✗
+        │
+        │ Shape:
+        │ │ Batch size: 2
+        │ │ Sequence length: 4
+        │ │
+        │ │ All dynamic data: (2, 4)
+        │
+        │ Data:
+        │ │ Dynamic:
+        │ │ │ time_delta_days (torch.float32):
+        │ │ │ │ [[1., 0., 0., 2.],
+        │ │ │ │  [4., 0., 0., 0.]]
+        │ │ │ code (torch.int64):
+        │ │ │ │ [[1, 2, 3, 3],
+        │ │ │ │  [5, 6, 0, 0]]
+        │ │ │ numeric_value (torch.float32):
+        │ │ │ │ [[ 1.,  0., -3.,  0.],
+        │ │ │ │  [ 0.,  0.,  0.,  0.]]
+        │ │ │ numeric_value_mask (torch.bool):
+        │ │ │ │ [[ True, False,  True, False],
+        │ │ │ │  [False,  True, False,  True]]
+        >>> print(batch.mode)
+        SM
+        >>> print(batch.static_inclusion_mode)
+        omit
+        >>> print(batch.has_labels)
+        False
+        >>> print(batch.batch_size)
+        2
+        >>> print(batch.max_events_per_subject)
+        None
+        >>> print(batch.max_measurements_per_event)
+        None
+        >>> print(batch.max_measurements_per_subject)
+        4
+        >>> print(batch.max_static_measurements_per_subject)
+        None
+
+    #### Static Data `INCLUDE`/`"include"` Mode
+    In this mode, static data is included as separate keys (the presence of such keys is the indicator that
+    the batch is in this static data inclusion mode).
+
+        >>> batch = MEDSTorchBatch(
+        ...     code=torch.tensor([[1, 2, 3, 3], [5, 6, 0, 0]]),
+        ...     numeric_value=torch.tensor([[1.0, 0.0, -3.0, 0.0], [0.0, 0.0, 0.0, 0.0]]),
+        ...     numeric_value_mask=torch.tensor([[True, False, True, False], [False, True, False, True]]),
+        ...     time_delta_days=torch.tensor([[1.0, 0.0, 0.0, 2.0], [4.0, 0.0, 0.0, 0.0]]),
+        ...     static_code=torch.tensor([[10], [9]]),
+        ...     static_numeric_value=torch.tensor([[0.], [0.]]),
+        ...     static_numeric_value_mask=torch.tensor([[False], [False]]),
+        ... )
+        >>> print(batch)
+        MEDSTorchBatch:
+        │ Mode: Subject-Measurement (SM)
+        │ Static data? ✓
+        │ Labels? ✗
+        │
+        │ Shape:
+        │ │ Batch size: 2
+        │ │ Sequence length: 4
+        │ │
+        │ │ All dynamic data: (2, 4)
+        │ │ Static data: (2, 1)
+        │
+        │ Data:
+        │ │ Dynamic:
+        │ │ │ time_delta_days (torch.float32):
+        │ │ │ │ [[1., 0., 0., 2.],
+        │ │ │ │  [4., 0., 0., 0.]]
+        │ │ │ code (torch.int64):
+        │ │ │ │ [[1, 2, 3, 3],
+        │ │ │ │  [5, 6, 0, 0]]
+        │ │ │ numeric_value (torch.float32):
+        │ │ │ │ [[ 1.,  0., -3.,  0.],
+        │ │ │ │  [ 0.,  0.,  0.,  0.]]
+        │ │ │ numeric_value_mask (torch.bool):
+        │ │ │ │ [[ True, False,  True, False],
+        │ │ │ │  [False,  True, False,  True]]
+        │ │
+        │ │ Static:
+        │ │ │ static_code (torch.int64):
+        │ │ │ │ [[10],
+        │ │ │ │  [ 9]]
+        │ │ │ static_numeric_value (torch.float32):
+        │ │ │ │ [[0.],
+        │ │ │ │  [0.]]
+        │ │ │ static_numeric_value_mask (torch.bool):
+        │ │ │ │ [[False],
+        │ │ │ │  [False]]
+        >>> print(batch.mode)
+        SM
+        >>> print(batch.static_inclusion_mode)
+        include
+        >>> print(batch.has_labels)
+        False
+        >>> print(batch.batch_size)
+        2
+        >>> print(batch.max_events_per_subject)
+        None
+        >>> print(batch.max_measurements_per_event)
+        None
+        >>> print(batch.max_measurements_per_subject)
+        4
+        >>> print(batch.max_static_measurements_per_subject)
+        1
+
+    #### Static Data `PREPEND`/`"prepend"` Mode
+    In this mode, static data is prepended to the beginning of the sequence of dynamic data. They will not be
+    separated out into their own keys, and some static data specific properties will raise errors, as
+    determining their values are not currently supported in these modes (please raise an issue if you need
+    this functionality). This mode is indicated by the presence of the `static_mask` tensor in the batch.
+    Time-deltas for static events will be 0, and the `event_mask` will be `True`.
+
+        >>> batch = MEDSTorchBatch(
+        ...     code=torch.tensor([[10, 1, 2, 3, 3], [9, 5, 6, 0, 0]]),
+        ...     numeric_value=torch.tensor([[0., 1., 0., -3., 0.], [0., 0., 0., 0., 0.]]),
+        ...     numeric_value_mask=torch.tensor(
+        ...         [[False, True, False, True, False], [False, False, True, False, True]]
+        ...     ),
+        ...     time_delta_days=torch.tensor([[0., 1., 0., 0., 2.], [0., 4., 0., 0., 0.]]),
+        ...     static_mask=torch.tensor(
+        ...         [[True, False, False, False, False], [True, False, False, False, False]]
+        ...     ),
+        ... )
+        >>> print(batch)
+        MEDSTorchBatch:
+        │ Mode: Subject-Measurement (SM)
+        │ Static data? ✓ (prepended)
+        │ Labels? ✗
+        │
+        │ Shape:
+        │ │ Batch size: 2
+        │ │ Sequence length (static + dynamic): 5
+        │ │
+        │ │ All [static; dynamic] data: (2, 5)
+        │
+        │ Data:
+        │ │ [Static; Dynamic]:
+        │ │ │ time_delta_days (torch.float32):
+        │ │ │ │ [[0., 1.,  ..., 0., 2.],
+        │ │ │ │  [0., 4.,  ..., 0., 0.]]
+        │ │ │ code (torch.int64):
+        │ │ │ │ [[10,  1,  ...,  3,  3],
+        │ │ │ │  [ 9,  5,  ...,  0,  0]]
+        │ │ │ numeric_value (torch.float32):
+        │ │ │ │ [[ 0.,  1.,  ..., -3.,  0.],
+        │ │ │ │  [ 0.,  0.,  ...,  0.,  0.]]
+        │ │ │ numeric_value_mask (torch.bool):
+        │ │ │ │ [[False,  True,  ...,  True, False],
+        │ │ │ │  [False, False,  ..., False,  True]]
+        │ │ │ static_mask (torch.bool):
+        │ │ │ │ [[ True, False,  ..., False, False],
+        │ │ │ │  [ True, False,  ..., False, False]]
+        >>> print(batch.mode)
+        SM
+        >>> print(batch.static_inclusion_mode)
+        prepend
+        >>> print(batch.has_labels)
+        False
+        >>> print(batch.batch_size)
+        2
+        >>> print(batch.max_events_per_subject)
+        None
+        >>> print(batch.max_measurements_per_event)
+        None
+        >>> print(batch.max_measurements_per_subject)
+        5
+        >>> batch.max_static_measurements_per_subject
+        Traceback (most recent call last):
+            ...
+        ValueError: This is not supported in PREPEND mode as it requires a computation
+
+
+    Note that labels can also be included
 
         >>> batch = MEDSTorchBatch(
         ...     code=torch.tensor([[1, 2, 3, 3], [5, 6, 0, 0]]),
@@ -407,29 +861,53 @@ class MEDSTorchBatch:
         ...     static_numeric_value_mask=torch.tensor([[True], [True]]),
         ...     boolean_value=torch.tensor([True, False]),
         ... )
-        >>> print(batch.mode)
-        SM
-        >>> print(batch.static_inclusion_mode)
-        include
         >>> print(batch.has_labels)
         True
-        >>> print(batch.batch_size)
-        2
-        >>> print(batch.max_events_per_subject)
-        None
-        >>> print(batch.max_measurements_per_event)
-        None
-        >>> print(batch.max_measurements_per_subject)
-        4
-        >>> print(batch.max_static_measurements_per_subject)
-        1
-        >>> print(batch.time_delta_days)
-        tensor([[1., 0., 0., 2.],
-                [4., 0., 0., 0.]])
-        >>> print(batch["event_mask"])
-        None
         >>> print(batch["boolean_value"])
         tensor([ True, False])
+        >>> print(batch)
+        MEDSTorchBatch:
+        │ Mode: Subject-Measurement (SM)
+        │ Static data? ✓
+        │ Labels? ✓
+        │
+        │ Shape:
+        │ │ Batch size: 2
+        │ │ Sequence length: 4
+        │ │
+        │ │ All dynamic data: (2, 4)
+        │ │ Static data: (2, 1)
+        │ │ Labels: torch.Size([2])
+        │
+        │ Data:
+        │ │ Dynamic:
+        │ │ │ time_delta_days (torch.float32):
+        │ │ │ │ [[1., 0., 0., 2.],
+        │ │ │ │  [4., 0., 0., 0.]]
+        │ │ │ code (torch.int64):
+        │ │ │ │ [[1, 2, 3, 3],
+        │ │ │ │  [5, 6, 0, 0]]
+        │ │ │ numeric_value (torch.float32):
+        │ │ │ │ [[ 1.,  0., -3.,  0.],
+        │ │ │ │  [ 0.,  0.,  0.,  0.]]
+        │ │ │ numeric_value_mask (torch.bool):
+        │ │ │ │ [[ True, False,  True, False],
+        │ │ │ │  [False,  True, False,  True]]
+        │ │
+        │ │ Static:
+        │ │ │ static_code (torch.int64):
+        │ │ │ │ [[1],
+        │ │ │ │  [5]]
+        │ │ │ static_numeric_value (torch.float32):
+        │ │ │ │ [[1.],
+        │ │ │ │  [0.]]
+        │ │ │ static_numeric_value_mask (torch.bool):
+        │ │ │ │ [[True],
+        │ │ │ │  [True]]
+        │ │
+        │ │ Labels:
+        │ │ │ boolean_value (torch.bool):
+        │ │ │ │ [ True, False]
 
     The batch will automatically validate tensor shapes, types, and presence vs. omission. In particular,
     the code, numeric_value, numeric_value_mask, and time_delta_days tensors are required, and must be in
@@ -896,10 +1374,6 @@ class MEDSTorchBatch:
                 raise ValueError("This is not supported in PREPEND mode as it requires a computation")
             case StaticInclusionMode.OMIT:
                 return None
-            case _:
-                raise NotImplementedError(
-                    f"Static inclusion mode {self.static_inclusion_mode} not implemented!"
-                )
 
     @property
     def _SE_shape(self) -> tuple[int, int]:

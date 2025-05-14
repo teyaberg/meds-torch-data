@@ -3,6 +3,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/get-started/locally/)
 [![Python 3.11+](https://img.shields.io/badge/-Python_3.11+-blue?logo=python&logoColor=white)](https://www.python.org/downloads/release/python-3100/)
 [![PyPI - Version](https://img.shields.io/pypi/v/meds-torch-data)](https://pypi.org/project/meds-torch-data/)
+[![MEDS v0.4](https://img.shields.io/badge/MEDS-0.4-blue)](https://medical-event-data-standard.github.io/)
 [![Documentation Status](https://readthedocs.org/projects/meds-testing-helpers/badge/?version=latest)](https://meds-testing-helpers.readthedocs.io/en/latest/?badge=latest)
 [![Tests](https://github.com/mmcdermott/meds-torch-data/actions/workflows/tests.yaml/badge.svg)](https://github.com/mmcdermott/meds-torch-data/actions/workflows/tests.yaml)
 [![Test Coverage](https://codecov.io/github/mmcdermott/meds-torch-data/graph/badge.svg?token=BV119L5JQJ)](https://codecov.io/github/mmcdermott/meds-torch-data)

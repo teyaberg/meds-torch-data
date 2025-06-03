@@ -1,3 +1,4 @@
+import dataclasses
 from functools import cached_property
 
 import lightning as L
@@ -89,6 +90,15 @@ class Datamodule(L.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
+
+        self.save_hyperparameters(
+            {
+                "batch_size": batch_size,
+                "num_workers": num_workers,
+                "pin_memory": pin_memory,
+                "config": dataclasses.asdict(config),
+            }
+        )
 
     @property
     def shared_dataloader_kwargs(self) -> dict:

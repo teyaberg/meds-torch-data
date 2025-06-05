@@ -10,7 +10,7 @@ from meds import DataSchema, LabelSchema
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
 from .config import MEDSTorchDataConfig, StaticInclusionMode
-from .types import BatchMode, MEDSTorchBatch, StaticData
+from .types import BatchMode, MEDSTorchBatch, StaticData, SubsequenceSamplingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
     LABEL_COL = LabelSchema.boolean_value_name
     END_IDX = "end_event_index"
+    LAST_TIME = "window_end_time"
 
     @classmethod
     def get_task_seq_bounds_and_labels(cls, label_df: pl.DataFrame, schema_df: pl.DataFrame) -> pl.DataFrame:
@@ -323,6 +324,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             │ 814703     ┆ 2               ┆ 2010-02-05 06:30:00 │
             │ 814703     ┆ 2               ┆ 2010-02-05 07:00:00 │
             └────────────┴─────────────────┴─────────────────────┘
+
         """
 
         base_df = pl.concat(
@@ -334,11 +336,28 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
         )
 
         if self.has_task_index:
-            return self.get_task_seq_bounds_and_labels(self.labels_df, base_df)
+            df = self.get_task_seq_bounds_and_labels(self.labels_df, base_df)
         else:
-            return base_df.select(
+            df = base_df.select(
                 DataSchema.subject_id_name, pl.col(DataSchema.time_name).list.len().alias(self.END_IDX)
             )
+
+        if (
+            self.config.return_last_time
+            and self.has_task_index
+            and self.config.seq_sampling_strategy != SubsequenceSamplingStrategy.RANDOM
+        ):
+            df = (
+                df.join(base_df, on=DataSchema.subject_id_name, how="left", maintain_order="left")
+                .with_columns(
+                    pl.col(DataSchema.time_name)
+                    .list.get(pl.col(self.END_IDX) - 1)
+                    .alias(self.LAST_TIME)
+                )
+                .drop(DataSchema.time_name)
+            )
+
+        return df
 
     def __len__(self):
         """Returns the length of the dataset.

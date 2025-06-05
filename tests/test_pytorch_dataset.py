@@ -1,4 +1,5 @@
-from meds_torchdata import MEDSPytorchDataset, MEDSTorchBatch
+from meds_torchdata import MEDSPytorchDataset, MEDSTorchBatch, MEDSTorchDataConfig
+from meds import DataSchema
 
 
 def test_dataset(sample_pytorch_dataset: MEDSPytorchDataset):
@@ -18,6 +19,27 @@ def test_dataset(sample_pytorch_dataset: MEDSPytorchDataset):
     dataloader = pyd.get_dataloader(batch_size=32, num_workers=2)
     batch = next(iter(dataloader))
     assert isinstance(batch, MEDSTorchBatch)
+
+
+def test_schema_df_last_time(tensorized_MEDS_dataset_with_index):
+    cohort_dir, tasks_dir, task_name = tensorized_MEDS_dataset_with_index
+    cfg = MEDSTorchDataConfig(
+        tensorized_cohort_dir=cohort_dir,
+        task_labels_dir=(tasks_dir / task_name),
+        max_seq_len=10,
+        seq_sampling_strategy="to_end",
+        return_last_time=True,
+    )
+
+    pyd = MEDSPytorchDataset(cfg, split="train")
+    assert MEDSPytorchDataset.LAST_TIME in pyd.schema_df.columns
+
+    subj, end_idx = pyd.index[0]
+    shard, subj_idx = pyd.subj_locations[subj]
+    times = pyd.schema_dfs_by_shard[shard][DataSchema.time_name][subj_idx]
+    expected = times[end_idx - 1]
+    expected_ts = int(expected.timestamp() * 1_000_000)
+    assert pyd.schema_df[pyd.LAST_TIME][0] == expected_ts
 
 
 def test_dataset_with_task(sample_pytorch_dataset_with_task: MEDSPytorchDataset):

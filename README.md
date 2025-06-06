@@ -182,8 +182,10 @@ Data processing parameters include:
 - `batch_mode`: Whether to return sequences at the _measurement_ level (`"SM"`) or the _event_ level
     (`"SEM"`). Note that here, we use "_measurement_" to refer to a single row (observation) in the raw MEDS
     data, and "_event_" to refer to all measurements taken at a single time-point.
-- `return_last_time`: If `True`, include the timestamp of the last observation in each sampled window in
-    the dataset's `schema_df` when an index dataframe is used and the sampling strategy is deterministic.
+- `include_window_end_time_in_schema`: If `True`, include the timestamp of the last observation in each
+    sampled window in the dataset's `schema_df` when an index dataframe is used and the sampling strategy is
+    deterministic. This functionality is useful for generative applications where the model needs to know what
+    the timestamp is at the start of a generation window, for example.
 
 Of these, `seq_sampling_strategy` and `static_inclusion_mode` are restricted, and must be of the
 [`SubsequenceSamplingStrategy`](https://meds-torch-data.readthedocs.io/en/latest/api/meds_torchdata/config/#meds_torchdata.config.SubsequenceSamplingStrategy)

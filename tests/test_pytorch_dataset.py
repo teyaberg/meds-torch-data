@@ -29,7 +29,7 @@ def test_schema_df_last_time(tensorized_MEDS_dataset_with_index):
         task_labels_dir=(tasks_dir / task_name),
         max_seq_len=10,
         seq_sampling_strategy="to_end",
-        return_last_time=True,
+        include_window_end_time_in_schema=True,
     )
 
     pyd = MEDSPytorchDataset(cfg, split="train")

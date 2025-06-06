@@ -342,7 +342,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             )
 
         if (
-            self.config.return_last_time
+            self.config.include_window_end_time_in_schema
             and self.has_task_index
             and self.config.seq_sampling_strategy != SubsequenceSamplingStrategy.RANDOM
         ):

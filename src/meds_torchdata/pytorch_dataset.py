@@ -10,7 +10,7 @@ from meds import DataSchema, LabelSchema
 from nested_ragged_tensors.ragged_numpy import JointNestedRaggedTensorDict
 
 from .config import MEDSTorchDataConfig, StaticInclusionMode
-from .types import BatchMode, MEDSTorchBatch, StaticData
+from .types import BatchMode, MEDSTorchBatch, StaticData, SubsequenceSamplingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
 
     LABEL_COL = LabelSchema.boolean_value_name
     END_IDX = "end_event_index"
+    LAST_TIME = "window_last_observed"
 
     @classmethod
     def get_task_seq_bounds_and_labels(cls, label_df: pl.DataFrame, schema_df: pl.DataFrame) -> pl.DataFrame:
@@ -325,20 +326,44 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             └────────────┴─────────────────┴─────────────────────┘
         """
 
-        base_df = pl.concat(
+        base_df = self._all_schemas
+
+        if self.has_task_index:
+            df = self.get_task_seq_bounds_and_labels(self.labels_df, base_df)
+        else:
+            df = base_df.select(
+                DataSchema.subject_id_name, pl.col(DataSchema.time_name).list.len().alias(self.END_IDX)
+            )
+
+        if (
+            self.config.include_window_last_observed_in_schema
+            and self.has_task_index
+            and self.config.seq_sampling_strategy != SubsequenceSamplingStrategy.RANDOM
+        ):
+            df = (
+                df.join(base_df, on=DataSchema.subject_id_name, how="left", maintain_order="left")
+                .with_columns(
+                    pl.from_epoch(  # This is a polars error where the timestamp was converted to ints...
+                        pl.col(DataSchema.time_name).list.get(pl.col(self.END_IDX) - 1),
+                        time_unit="us",
+                    ).alias(self.LAST_TIME)
+                )
+                .drop(DataSchema.time_name)
+            )
+
+        return df
+
+    @property
+    def _all_schemas(self) -> pl.DataFrame:
+        """This is a helper for easy access to the full set of schema dataframes for debugging."""
+
+        return pl.concat(
             (
                 df.select(DataSchema.subject_id_name, DataSchema.time_name)
                 for df in self.schema_dfs_by_shard.values()
             ),
             how="vertical",
         )
-
-        if self.has_task_index:
-            return self.get_task_seq_bounds_and_labels(self.labels_df, base_df)
-        else:
-            return base_df.select(
-                DataSchema.subject_id_name, pl.col(DataSchema.time_name).list.len().alias(self.END_IDX)
-            )
 
     def __len__(self):
         """Returns the length of the dataset.

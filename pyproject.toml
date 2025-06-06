@@ -21,12 +21,12 @@ classifiers = [
 ]
 dependencies = [
     "pytest",
-    "polars",
+    "polars~=1.30.0",
     "nested_ragged_tensors>=0.1.0",
     "numpy",
     "torch",
     "meds~=0.4.0",
-    "MEDS_transforms~=0.5.0",
+    "MEDS_transforms~=0.5.2",
     "hydra-core",
     "omegaconf",
     "meds_testing_helpers>=0.3.0"

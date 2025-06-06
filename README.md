@@ -182,7 +182,7 @@ Data processing parameters include:
 - `batch_mode`: Whether to return sequences at the _measurement_ level (`"SM"`) or the _event_ level
     (`"SEM"`). Note that here, we use "_measurement_" to refer to a single row (observation) in the raw MEDS
     data, and "_event_" to refer to all measurements taken at a single time-point.
-- `include_window_end_time_in_schema`: If `True`, include the timestamp of the last observation in each
+- `include_window_last_observed_in_schema`: If `True`, include the timestamp of the last observation in each
     sampled window in the dataset's `schema_df` when an index dataframe is used and the sampling strategy is
     deterministic. This functionality is useful for generative applications where the model needs to know what
     the timestamp is at the start of a generation window, for example.
@@ -413,6 +413,38 @@ shape: (13, 4)
 │ 814703     ┆ 2               ┆ 2010-02-05 06:30:00 ┆ true          │
 │ 814703     ┆ 2               ┆ 2010-02-05 07:00:00 ┆ true          │
 └────────────┴─────────────────┴─────────────────────┴───────────────┘
+
+```
+
+When we have a task or index dataframe (an index is just a task without a label), we can also ask the model to
+include the last observed time in our input window in the schema, with the `include_window_last_observed_in_schema`
+parameter:
+
+```python
+>>> cfg_with_end_time = MEDSTorchDataConfig(
+...     cohort_dir, max_seq_len=5, task_labels_dir=(tasks_dir / task_name), seq_sampling_strategy="to_end",
+...     include_window_last_observed_in_schema=True
+... )
+>>> pyd_with_end_time = MEDSPytorchDataset(cfg_with_end_time, split="train")
+>>> pyd_with_end_time.schema_df
+shape: (13, 5)
+┌────────────┬─────────────────┬─────────────────────┬───────────────┬──────────────────────┐
+│ subject_id ┆ end_event_index ┆ prediction_time     ┆ boolean_value ┆ window_last_observed │
+│ ---        ┆ ---             ┆ ---                 ┆ ---           ┆ ---                  │
+│ i64        ┆ u32             ┆ datetime[μs]        ┆ bool          ┆ datetime[μs]         │
+╞════════════╪═════════════════╪═════════════════════╪═══════════════╪══════════════════════╡
+│ 239684     ┆ 3               ┆ 2010-05-11 18:00:00 ┆ false         ┆ 2010-05-11 17:48:48  │
+│ 239684     ┆ 4               ┆ 2010-05-11 18:30:00 ┆ true          ┆ 2010-05-11 18:25:35  │
+│ 239684     ┆ 5               ┆ 2010-05-11 19:00:00 ┆ true          ┆ 2010-05-11 18:57:18  │
+│ 1195293    ┆ 3               ┆ 2010-06-20 19:30:00 ┆ false         ┆ 2010-06-20 19:25:32  │
+│ 1195293    ┆ 4               ┆ 2010-06-20 20:00:00 ┆ true          ┆ 2010-06-20 19:45:19  │
+│ …          ┆ …               ┆ …                   ┆ …             ┆ …                    │
+│ 68729      ┆ 2               ┆ 2010-05-26 04:00:00 ┆ true          ┆ 2010-05-26 02:30:56  │
+│ 68729      ┆ 2               ┆ 2010-05-26 04:30:00 ┆ true          ┆ 2010-05-26 02:30:56  │
+│ 814703     ┆ 2               ┆ 2010-02-05 06:00:00 ┆ false         ┆ 2010-02-05 05:55:39  │
+│ 814703     ┆ 2               ┆ 2010-02-05 06:30:00 ┆ true          ┆ 2010-02-05 05:55:39  │
+│ 814703     ┆ 2               ┆ 2010-02-05 07:00:00 ┆ true          ┆ 2010-02-05 05:55:39  │
+└────────────┴─────────────────┴─────────────────────┴───────────────┴──────────────────────┘
 
 ```
 

@@ -125,7 +125,7 @@ class MEDSTorchDataConfig:
     batch_mode: BatchMode = BatchMode.SM
 
     # Extra output
-    include_window_end_time_in_schema: bool = False
+    include_window_last_observed_in_schema: bool = False
 
     @classmethod
     def add_to_config_store(cls, group: str | None = None):
@@ -146,7 +146,7 @@ class MEDSTorchDataConfig:
                              'static_inclusion_mode': <StaticInclusionMode.INCLUDE: 'include'>,
                              'task_labels_dir': None,
                              'batch_mode': <BatchMode.SM: 'SM'>,
-                             'include_window_end_time_in_schema': False,
+                             'include_window_last_observed_in_schema': False,
                              '_target_': 'meds_torchdata.config.MEDSTorchDataConfig'},
                        group=None,
                        package=None,
@@ -169,7 +169,7 @@ class MEDSTorchDataConfig:
              'static_inclusion_mode': <StaticInclusionMode.INCLUDE: 'include'>,
              'task_labels_dir': None,
              'batch_mode': <BatchMode.SM: 'SM'>,
-             'include_window_end_time_in_schema': False,
+             'include_window_last_observed_in_schema': False,
              '_target_': 'meds_torchdata.config.MEDSTorchDataConfig'}
             >>> from hydra.utils import instantiate
             >>> instantiate(cfg)
@@ -180,7 +180,7 @@ class MEDSTorchDataConfig:
                                 static_inclusion_mode=<StaticInclusionMode.INCLUDE: 'include'>,
                                 task_labels_dir=None,
                                 batch_mode=<BatchMode.SM: 'SM'>,
-                                include_window_end_time_in_schema=False)
+                                include_window_last_observed_in_schema=False)
 
         Note that Hydra's CLI parameters with structured configs recognize that the `StrEnum` classes are
         enums, but fails to recognize that they accept lowercased names as the names of the class members are
@@ -216,7 +216,7 @@ class MEDSTorchDataConfig:
                                 static_inclusion_mode=<StaticInclusionMode.INCLUDE: 'include'>,
                                 task_labels_dir=None,
                                 batch_mode=<BatchMode.SM: 'SM'>,
-                                include_window_end_time_in_schema=False)
+                                include_window_last_observed_in_schema=False)
 
         You can also add the config to a group
 
@@ -231,7 +231,7 @@ class MEDSTorchDataConfig:
                              'static_inclusion_mode': <StaticInclusionMode.INCLUDE: 'include'>,
                              'task_labels_dir': None,
                              'batch_mode': <BatchMode.SM: 'SM'>,
-                             'include_window_end_time_in_schema': False,
+                             'include_window_last_observed_in_schema': False,
                              '_target_': 'meds_torchdata.config.MEDSTorchDataConfig'},
                        group='my_group/my_subgroup',
                        package=None,

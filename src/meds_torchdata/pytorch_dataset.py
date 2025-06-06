@@ -324,7 +324,6 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             │ 814703     ┆ 2               ┆ 2010-02-05 06:30:00 │
             │ 814703     ┆ 2               ┆ 2010-02-05 07:00:00 │
             └────────────┴─────────────────┴─────────────────────┘
-
         """
 
         base_df = pl.concat(
@@ -350,9 +349,7 @@ class MEDSPytorchDataset(torch.utils.data.Dataset):
             df = (
                 df.join(base_df, on=DataSchema.subject_id_name, how="left", maintain_order="left")
                 .with_columns(
-                    pl.col(DataSchema.time_name)
-                    .list.get(pl.col(self.END_IDX) - 1)
-                    .alias(self.LAST_TIME)
+                    pl.col(DataSchema.time_name).list.get(pl.col(self.END_IDX) - 1).alias(self.LAST_TIME)
                 )
                 .drop(DataSchema.time_name)
             )

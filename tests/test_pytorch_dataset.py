@@ -1,5 +1,6 @@
-from meds_torchdata import MEDSPytorchDataset, MEDSTorchBatch, MEDSTorchDataConfig
 from meds import DataSchema
+
+from meds_torchdata import MEDSPytorchDataset, MEDSTorchBatch, MEDSTorchDataConfig
 
 
 def test_dataset(sample_pytorch_dataset: MEDSPytorchDataset):

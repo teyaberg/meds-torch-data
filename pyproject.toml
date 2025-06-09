@@ -36,7 +36,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pre-commit<4", "ruff"]
-tests = ["pytest-cov[toml]"]
+tests = ["pytest-cov[toml]", "hypothesis"]
 lightning = ["lightning~=2.5.1"]
 benchmarks = ["ml-mixins[memtrackable]>=0.2", "rootutils"]
 docs = [

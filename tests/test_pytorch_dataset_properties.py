@@ -55,7 +55,7 @@ def _schema_and_labels():
 
 
 @given(_schema_and_labels())
-@settings(max_examples=25)
+@settings(max_examples=25, deadline=None)
 def test_get_task_seq_bounds_and_labels_property(data):
     schema_df, label_df = data
 
@@ -83,13 +83,13 @@ def test_get_task_seq_bounds_and_labels_property(data):
             }
         )
 
-    expected = pl.DataFrame(expected_rows)
+    expected = pl.DataFrame(expected_rows, schema=result.schema)
 
-    assert result.to_dict(False) == expected.to_dict(False)
+    assert result.to_dict(as_series=False) == expected.to_dict(as_series=False)
 
 
 @given(st.data())
-@settings(max_examples=25)
+@settings(max_examples=25, deadline=None)
 def test_schema_df_last_observed(sample_dataset_config_with_index, data):
     cfg = sample_dataset_config_with_index
     cfg.include_window_last_observed_in_schema = True

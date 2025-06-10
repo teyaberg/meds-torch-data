@@ -30,7 +30,7 @@ pre-commit run --all-files
 During development you can run them only on changed files:
 
 ```bash
-pre-commit run --files <path1> [<path2> ...]
+pre-commit run --files path1 [path2 ...]
 ```
 
 The hooks format code with `ruff`, check docstrings, lint notebooks and YAML files, and generally

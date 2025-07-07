@@ -105,6 +105,7 @@ def test_schema_df_last_observed(sample_dataset_config_with_index, data):
     assert 0 < end_idx <= len(times)
     assert dataset.schema_df[dataset.LAST_TIME][idx] == times[end_idx - 1]
 
+
 @given(_schema_and_labels())
 @settings(max_examples=25, deadline=None)
 def test_get_task_seq_bounds_and_labels_semantic(data):

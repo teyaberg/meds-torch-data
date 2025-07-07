@@ -1,12 +1,14 @@
 from bisect import bisect_right
 from datetime import datetime, timedelta
 
+import numpy as np
 import polars as pl
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from meds import DataSchema, LabelSchema
 
 from meds_torchdata import MEDSPytorchDataset
+from meds_torchdata.types import BatchMode
 
 
 def _schema_and_labels():
@@ -102,3 +104,70 @@ def test_schema_df_last_observed(sample_dataset_config_with_index, data):
 
     assert 0 < end_idx <= len(times)
     assert dataset.schema_df[dataset.LAST_TIME][idx] == times[end_idx - 1]
+
+@given(_schema_and_labels())
+@settings(max_examples=25, deadline=None)
+def test_get_task_seq_bounds_and_labels_semantic(data):
+    schema_df, label_df = data
+    result = MEDSPytorchDataset.get_task_seq_bounds_and_labels(label_df, schema_df)
+
+    schema_map = {
+        row[0]: row[1]
+        for row in schema_df.select(DataSchema.subject_id_name, DataSchema.time_name).iter_rows()
+    }
+
+    for row in result.iter_rows(named=True):
+        subj = row[DataSchema.subject_id_name]
+        times = schema_map[subj]
+        end_idx = row[MEDSPytorchDataset.END_IDX]
+        pred_time = row[LabelSchema.prediction_time_name]
+
+        assert 0 <= end_idx <= len(times)
+        if end_idx < len(times):
+            assert times[end_idx] > pred_time
+        else:
+            assert end_idx == len(times)
+        if end_idx > 0:
+            assert times[end_idx - 1] <= pred_time
+
+
+def test_getitem_consistency(sample_dataset_config_with_index):
+    cfg = sample_dataset_config_with_index
+    cfg.include_window_last_observed_in_schema = True
+    cfg.batch_mode = BatchMode.SEM
+    dataset = MEDSPytorchDataset(cfg, split="train")
+
+    for idx in range(len(dataset)):
+        item = dataset[idx]
+        subj, end_idx = dataset.index[idx]
+
+        shard, subj_idx = dataset.subj_locations[subj]
+        times = dataset.schema_dfs_by_shard[shard][DataSchema.time_name][subj_idx]
+
+        dense = item["dynamic"].to_dense()
+        deltas = np.asarray(dense["time_delta_days"], dtype=float)
+        n_events = deltas.shape[0]
+
+        assert n_events == min(end_idx, dataset.config.max_seq_len)
+
+        start_idx = end_idx - n_events
+
+        time_deltas = [float("nan")]
+        for i in range(1, len(times)):
+            time_deltas.append((times[i] - times[i - 1]).total_seconds() / (24 * 3600))
+        expected_slice = np.asarray(time_deltas[start_idx:end_idx], dtype=float)
+
+        assert deltas.shape[0] == expected_slice.shape[0]
+        assert np.allclose(deltas, expected_slice, equal_nan=True)
+
+        prev_time = times[start_idx - 1] if start_idx > 0 else times[0]
+        observed_days = np.nansum(np.nan_to_num(deltas))
+        expected_days = (times[end_idx - 1] - prev_time).total_seconds() / (24 * 3600)
+        assert np.isclose(observed_days, expected_days)
+        last_time = prev_time + timedelta(days=float(observed_days))
+
+        assert abs((last_time - times[end_idx - 1]).total_seconds()) < 60
+        assert dataset.schema_df[dataset.LAST_TIME][idx] == times[end_idx - 1]
+
+        if dataset.has_task_labels:
+            assert item[dataset.LABEL_COL].item() == dataset.schema_df[dataset.LABEL_COL][idx]

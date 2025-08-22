@@ -23,5 +23,6 @@ runs:
         cache-suffix: "py${{ inputs.python-version }}"
 
     - name: Install packages
+      shell: bash
       run: |
         uv sync --locked --group ${{ inputs.group }}

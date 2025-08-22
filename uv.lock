@@ -821,7 +821,9 @@ benchmarks = [
     { name = "rootutils" },
 ]
 dev = [
+    { name = "hypothesis" },
     { name = "pre-commit" },
+    { name = "pytest-cov" },
     { name = "ruff" },
 ]
 docs = [
@@ -834,10 +836,7 @@ docs = [
     { name = "mkdocs-material" },
     { name = "mkdocs-section-index" },
     { name = "mkdocstrings", extra = ["python"] },
-]
-tests = [
-    { name = "hypothesis" },
-    { name = "pytest-cov" },
+    { name = "mkdocstrings-shell" },
 ]
 
 [package.metadata]
@@ -863,7 +862,9 @@ benchmarks = [
     { name = "rootutils" },
 ]
 dev = [
+    { name = "hypothesis" },
     { name = "pre-commit", specifier = "<4" },
+    { name = "pytest-cov" },
     { name = "ruff" },
 ]
 docs = [
@@ -875,11 +876,8 @@ docs = [
     { name = "mkdocs-literate-nav", specifier = "==0.6.1" },
     { name = "mkdocs-material", specifier = "==9.6.7" },
     { name = "mkdocs-section-index", specifier = "==0.3.9" },
-    { name = "mkdocstrings", extras = ["python", "shell"], specifier = "==0.28.2" },
-]
-tests = [
-    { name = "hypothesis" },
-    { name = "pytest-cov", extras = ["toml"] },
+    { name = "mkdocstrings", extras = ["python"], specifier = "==0.28.2" },
+    { name = "mkdocstrings-shell", specifier = "~=1.0" },
 ]
 
 [[package]]
@@ -1135,6 +1133,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ed/a9/5990642e1bb2d90b049f655b92f46d0a77acb76ed59ef3233d5a6934312e/mkdocstrings_python-1.16.2.tar.gz", hash = "sha256:942ec1a2e0481d28f96f93be3d6e343cab92a21e5baf01c37dd2d7236c4d0bd7", size = 423492, upload-time = "2025-02-24T16:18:13.997Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/82/a2/60be7e17a2f2a9d4bfb7273cdb2071eeeb65bdca5c0d07ff16df63221ca2/mkdocstrings_python-1.16.2-py3-none-any.whl", hash = "sha256:ff7e719404e59ad1a72f1afbe854769984c889b8fa043c160f6c988e1ad9e966", size = 449141, upload-time = "2025-02-24T16:18:11.484Z" },
+]
+
+[[package]]
+name = "mkdocstrings-shell"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mkdocstrings" },
+    { name = "shellman" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/65/ec/ec205f8b6a451c5513e2938ee5ffe4334cda9b38604e49b17799f08ca4d0/mkdocstrings_shell-1.0.0.tar.gz", hash = "sha256:cf97791502a49e257c1c6e977ad7c362bdc94ea84b9b866622d42411abeefead", size = 36269, upload-time = "2024-10-12T15:48:48.457Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9f/19/1662407643c71ac5c211588cb58e0a4df75e905f7eb91a7049bc48ea4099/mkdocstrings_shell-1.0.0-py3-none-any.whl", hash = "sha256:236244ce7d96eea63472148725754115533a6d8c62bc8fd99fd62ab160444317", size = 9465, upload-time = "2024-10-12T15:48:46.519Z" },
 ]
 
 [[package]]
@@ -2065,6 +2076,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/18/5d/3bf57dcd21979b887f014ea83c24ae194cfcd12b9e0fda66b957c69d1fca/setuptools-80.9.0.tar.gz", hash = "sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c", size = 1319958, upload-time = "2025-05-27T00:56:51.443Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a3/dc/17031897dae0efacfea57dfd3a82fdd2a2aeb58e0ff71b77b87e44edc772/setuptools-80.9.0-py3-none-any.whl", hash = "sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922", size = 1201486, upload-time = "2025-05-27T00:56:49.664Z" },
+]
+
+[[package]]
+name = "shellman"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jinja2" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/28/4a/0740b503abaccd7f6a81c17401abfc6a8d53627ec5ea2104dee4dd5e268e/shellman-1.0.2.tar.gz", hash = "sha256:48cba79d6415c0d013ad4dfd2205ed81b0e468795d1886dcda943ac78eaffd38", size = 59234, upload-time = "2025-03-27T15:19:54.87Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0d/bb/2a3410f11a5ff50be0e98dff5de72d9c2a16982a64129a59fcc9b30c4447/shellman-1.0.2-py3-none-any.whl", hash = "sha256:f8c960fd2d3785e195f86fcd8f110a8d51a950e759d82c14a5af0bd71b918b3c", size = 30312, upload-time = "2025-03-27T15:19:53.572Z" },
 ]
 
 [[package]]

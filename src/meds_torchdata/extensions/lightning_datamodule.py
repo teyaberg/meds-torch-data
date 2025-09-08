@@ -1,15 +1,14 @@
 import dataclasses
 from functools import cached_property
+from typing import Generic, TypeVar, cast
 
 import lightning as L
+from hydra.utils import get_class
 from meds import held_out_split, train_split, tuning_split
 from torch.utils.data import DataLoader
 
 from ..config import MEDSTorchDataConfig
 from ..pytorch_dataset import MEDSPytorchDataset
-
-from hydra.utils import get_class
-from typing import Generic, Type, TypeVar, cast
 
 DatasetT = TypeVar("DatasetT", bound=MEDSPytorchDataset)
 
@@ -87,7 +86,7 @@ class Datamodule(L.LightningDataModule, Generic[DatasetT]):
     def __init__(
         self,
         config: MEDSTorchDataConfig,
-        data_class: Type[DatasetT] | str = MEDSPytorchDataset,
+        data_class: type[DatasetT] | str = MEDSPytorchDataset,
         batch_size: int = 32,
         num_workers: int | None = None,
         pin_memory: bool | None = None,
@@ -95,8 +94,8 @@ class Datamodule(L.LightningDataModule, Generic[DatasetT]):
         super().__init__()
         self.config = config
         if isinstance(data_class, str):
-            data_class = cast(Type[DatasetT], get_class(data_class))
-        self.data_class: Type[DatasetT] = cast(Type[DatasetT], data_class)
+            data_class = cast("type[DatasetT]", get_class(data_class))
+        self.data_class: type[DatasetT] = cast("type[DatasetT]", data_class)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory

@@ -6,11 +6,11 @@ from meds import held_out_split, train_split, tuning_split
 from torch.utils.data import DataLoader
 
 from ..config import MEDSTorchDataConfig
-from ..pytorch_dataset import MEDSPytorchDataset
+from ..pytorch_multiwindow_dataset import MEDSPytorchMultiWindowDataset
 
 
 class Datamodule(L.LightningDataModule):
-    """A lightning datamodule for a MEDSPytorchDataset.
+    """A lightning datamodule for a MEDSPytorchMultiWindowDataset.
 
     > [!NOTE]
     > This class does not do any intelligent preparation of the dataset; it merely packages a pre-processed
@@ -28,15 +28,15 @@ class Datamodule(L.LightningDataModule):
 
     Examples:
         >>> D = Datamodule(config=sample_dataset_config, batch_size=2)
-        >>> isinstance(D.train_dataset, MEDSPytorchDataset)
+        >>> isinstance(D.train_dataset, MEDSPytorchMultiWindowDataset)
         True
         >>> D.train_dataset.split
         'train'
-        >>> isinstance(D.val_dataset, MEDSPytorchDataset)
+        >>> isinstance(D.val_dataset, MEDSPytorchMultiWindowDataset)
         True
         >>> D.val_dataset.split
         'tuning'
-        >>> isinstance(D.test_dataset, MEDSPytorchDataset)
+        >>> isinstance(D.test_dataset, MEDSPytorchMultiWindowDataset)
         True
         >>> D.test_dataset.split
         'held_out'
@@ -109,18 +109,18 @@ class Datamodule(L.LightningDataModule):
         return out
 
     @cached_property
-    def train_dataset(self) -> MEDSPytorchDataset:
-        return MEDSPytorchDataset(self.config, split=train_split)
+    def train_dataset(self) -> MEDSPytorchMultiWindowDataset:
+        return MEDSPytorchMultiWindowDataset(self.config, split=train_split)
 
     @cached_property
-    def val_dataset(self) -> MEDSPytorchDataset:
-        return MEDSPytorchDataset(self.config, split=tuning_split)
+    def val_dataset(self) -> MEDSPytorchMultiWindowDataset:
+        return MEDSPytorchMultiWindowDataset(self.config, split=tuning_split)
 
     @cached_property
-    def test_dataset(self) -> MEDSPytorchDataset:
-        return MEDSPytorchDataset(self.config, split=held_out_split)
+    def test_dataset(self) -> MEDSPytorchMultiWindowDataset:
+        return MEDSPytorchMultiWindowDataset(self.config, split=held_out_split)
 
-    def __dataloader(self, dataset: MEDSPytorchDataset, **kwargs) -> DataLoader:
+    def __dataloader(self, dataset: MEDSPytorchMultiWindowDataset, **kwargs) -> DataLoader:
         return DataLoader(dataset, collate_fn=dataset.collate, **self.shared_dataloader_kwargs, **kwargs)
 
     def train_dataloader(self):

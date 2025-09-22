@@ -139,7 +139,9 @@ class StaticData(NamedTuple):
     code: list[int]
     numeric_value: list[float | None]
 
-    def to_JNRT(self, batch_mode: BatchMode, schema: dict | None = None) -> JointNestedRaggedTensorDict:
+    def to_JNRT(
+        self, batch_mode: BatchMode, schema: dict | None = None
+    ) -> JointNestedRaggedTensorDict:
         """Converts the static data into a JointNestedRaggedTensorDict representation.
 
         Args:
@@ -220,8 +222,11 @@ class StaticData(NamedTuple):
         return JointNestedRaggedTensorDict(static_dict, schema=schema)
 
 
+from meds_interp.utils.output_dataclass_bases import GetItemBase
+
+
 @dataclass
-class MEDSTorchBatch:
+class MEDSTorchBatch(GetItemBase):
     """Simple data structure to hold a batch of MEDS data.
 
     Can be accessed by attribute (e.g., `batch.code`) or string key (e.g. `batch["code"]`). The elements in
@@ -1232,7 +1237,11 @@ class MEDSTorchBatch:
         "static_numeric_value",
         "static_numeric_value_mask",
     )
-    SE_TENSOR_NAMES: ClassVar[tuple[str]] = ("time_delta_days", "event_mask", "static_mask")
+    SE_TENSOR_NAMES: ClassVar[tuple[str]] = (
+        "time_delta_days",
+        "event_mask",
+        "static_mask",
+    )
     SM_TENSOR_NAMES: ClassVar[tuple[str]] = (
         "time_delta_days",
         "code",
@@ -1240,7 +1249,11 @@ class MEDSTorchBatch:
         "numeric_value_mask",
         "static_mask",
     )
-    SEM_TENSOR_NAMES: ClassVar[tuple[str]] = ("code", "numeric_value", "numeric_value_mask")
+    SEM_TENSOR_NAMES: ClassVar[tuple[str]] = (
+        "code",
+        "numeric_value",
+        "numeric_value_mask",
+    )
     LABEL_TENSOR_NAMES: ClassVar[tuple[str]] = ("boolean_value",)
 
     def __check_shape(self, name: str, shape: tuple[int, ...]) -> None:
@@ -1269,14 +1282,18 @@ class MEDSTorchBatch:
         match self.mode:
             case BatchMode.SEM:
                 if self.event_mask is None:
-                    raise ValueError(f"Event mask must be provided in {self.mode} mode!")
+                    raise ValueError(
+                        f"Event mask must be provided in {self.mode} mode!"
+                    )
                 self.__check_shape("time_delta_days", self._SE_shape)
                 self.__check_shape("event_mask", self._SE_shape)
                 self.__check_shape("numeric_value", self._SEM_shape)
                 self.__check_shape("numeric_value_mask", self._SEM_shape)
             case BatchMode.SM:
                 if self.event_mask is not None:
-                    raise ValueError(f"Event mask should not be provided in {self.mode} mode!")
+                    raise ValueError(
+                        f"Event mask should not be provided in {self.mode} mode!"
+                    )
                 self.__check_shape("time_delta_days", self._SM_shape)
                 self.__check_shape("numeric_value", self._SM_shape)
                 self.__check_shape("numeric_value_mask", self._SM_shape)
@@ -1286,12 +1303,20 @@ class MEDSTorchBatch:
         match self.static_inclusion_mode:
             case StaticInclusionMode.INCLUDE:
                 if self.static_mask is not None:
-                    raise ValueError("Static mask should not be provided if static codes are!")
-                if self.static_numeric_value is None or self.static_numeric_value_mask is None:
+                    raise ValueError(
+                        "Static mask should not be provided if static codes are!"
+                    )
+                if (
+                    self.static_numeric_value is None
+                    or self.static_numeric_value_mask is None
+                ):
                     raise ValueError(
                         "Static numeric value and mask must both be provided if static codes are!"
                     )
-                if len(self.static_code.shape) != 2 or self.static_code.shape[0] != self.batch_size:
+                if (
+                    len(self.static_code.shape) != 2
+                    or self.static_code.shape[0] != self.batch_size
+                ):
                     raise ValueError(
                         f"Expected 2D static data tensors with a matching batch size ({self.batch_size}), "
                         f"but got static_code shape {self.static_code.shape}!"
@@ -1299,17 +1324,29 @@ class MEDSTorchBatch:
                 self.__check_shape("static_numeric_value", self._static_shape)
                 self.__check_shape("static_numeric_value_mask", self._static_shape)
             case StaticInclusionMode.OMIT:
-                if self.static_numeric_value is not None or self.static_numeric_value_mask is not None:
-                    raise ValueError("Static numeric value and mask should not be provided without codes!")
+                if (
+                    self.static_numeric_value is not None
+                    or self.static_numeric_value_mask is not None
+                ):
+                    raise ValueError(
+                        "Static numeric value and mask should not be provided without codes!"
+                    )
             case StaticInclusionMode.PREPEND:
-                if self.static_numeric_value is not None or self.static_numeric_value_mask is not None:
-                    raise ValueError("Static numeric value and mask should not be provided with static mask!")
+                if (
+                    self.static_numeric_value is not None
+                    or self.static_numeric_value_mask is not None
+                ):
+                    raise ValueError(
+                        "Static numeric value and mask should not be provided with static mask!"
+                    )
                 if self.mode == BatchMode.SEM:
                     self.__check_shape("static_mask", self._SE_shape)
                 elif self.mode == BatchMode.SM:
                     self.__check_shape("static_mask", self._SM_shape)
             case _:  # pragma: no cover
-                raise ValueError(f"Invalid static inclusion mode {self.static_inclusion_mode}!")
+                raise ValueError(
+                    f"Invalid static inclusion mode {self.static_inclusion_mode}!"
+                )
 
         if self.has_labels:
             self.__check_shape("boolean_value", (self.batch_size,))
@@ -1405,7 +1442,9 @@ class MEDSTorchBatch:
             case StaticInclusionMode.INCLUDE:
                 return self.static_code.shape[1]
             case StaticInclusionMode.PREPEND:
-                raise ValueError("This is not supported in PREPEND mode as it requires a computation")
+                raise ValueError(
+                    "This is not supported in PREPEND mode as it requires a computation"
+                )
             case StaticInclusionMode.OMIT:
                 return None
 
@@ -1504,10 +1543,16 @@ class MEDSTorchBatch:
 
         match self.mode:
             case BatchMode.SM:
-                shape_lines.append(f"{BRANCH}{seq_len_n}: {self.max_measurements_per_subject}")
+                shape_lines.append(
+                    f"{BRANCH}{seq_len_n}: {self.max_measurements_per_subject}"
+                )
             case BatchMode.SEM:
-                shape_lines.append(f"{BRANCH}{seq_len_n}: {self.max_events_per_subject}")
-                shape_lines.append(f"{BRANCH}Event length: {self.max_measurements_per_event}")
+                shape_lines.append(
+                    f"{BRANCH}{seq_len_n}: {self.max_events_per_subject}"
+                )
+                shape_lines.append(
+                    f"{BRANCH}Event length: {self.max_measurements_per_event}"
+                )
 
         shape_lines.append(BRANCH)
 
@@ -1576,7 +1621,11 @@ class MEDSTorchBatch:
 
     def __SM_str_lines(self) -> list[str]:
         """Gets the lines in the string representation corresponding to the SM data tensors."""
-        n = "[Static; Dynamic]" if self.static_inclusion_mode == StaticInclusionMode.PREPEND else "Dynamic"
+        n = (
+            "[Static; Dynamic]"
+            if self.static_inclusion_mode == StaticInclusionMode.PREPEND
+            else "Dynamic"
+        )
         return self.__str_tensor_list(n, self.SM_TENSOR_NAMES)
 
     def __SE_str_lines(self) -> list[str]:
@@ -1606,7 +1655,9 @@ class MEDSTorchBatch:
             case BatchMode.SEM:
                 data_lines.extend([f"{BRANCH}{line}" for line in self.__SE_str_lines()])
                 data_lines.append(BRANCH)
-                data_lines.extend([f"{BRANCH}{line}" for line in self.__SEM_str_lines()])
+                data_lines.extend(
+                    [f"{BRANCH}{line}" for line in self.__SEM_str_lines()]
+                )
 
         if self.static_inclusion_mode == StaticInclusionMode.INCLUDE:
             data_lines.append(BRANCH)

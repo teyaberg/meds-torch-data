@@ -3,7 +3,42 @@ output_dir: ${oc.env:OUTPUT_DIR}
 
 etl_metadata.pipeline_name: "tensorization"
 
+# stages:
+#   - fit_normalization:
+#       aggregations:
+#         - "code/n_occurrences"
+#         - "code/n_subjects"
+#         - "values/n_occurrences"
+#         - "values/sum"
+#         - "values/sum_sqd"
+#     _base_stage: aggregate_code_metadata
+#   - fit_vocabulary_indices
+#   - normalization
+#   - tokenization
+#   - tensorization
+
 stages:
+  # - count_codes:
+  #     aggregations:
+  #       - "code/n_occurrences"
+  #       - "code/n_subjects"
+  #   _base_stage: aggregate_code_metadata
+  # - filter_measurements:
+  #     _match_revise:
+  #       # - _matcher: # No filter for static measurements
+  #       #     time:
+  #       #       present: False
+  #       - _matcher: # No filter for birth, death, admission, discharge, registration, or time intervals.
+  #           code:
+  #             regex: "MEDS_DEATH.*|MEDS_BIRTH.*|.*ADMISSION.*|.*DISCHARGE.*|.*REGISTRATION.*|.*TIME.*"
+  #       - _matcher:
+  #           time:
+  #             present: True
+  #         min_subjects_per_code: ${oc.decode:${oc.env:MIN_SUBJECTS_PER_CODE,1000}}
+  #     _base_stage: filter_measurements
+  # - filter_subjects:
+  #     min_events_per_subject: ${oc.decode:${oc.env:MIN_EVENTS_PER_SUBJECT,1}}
+  #     min_measurements_per_subject: null
   - fit_normalization:
       aggregations:
         - "code/n_occurrences"

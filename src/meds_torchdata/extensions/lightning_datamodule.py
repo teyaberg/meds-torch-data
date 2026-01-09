@@ -130,4 +130,8 @@ class Datamodule(L.LightningDataModule):
         return self.__dataloader(self.val_dataset, shuffle=False)
 
     def test_dataloader(self):
-        return self.__dataloader(self.test_dataset, shuffle=False)
+        return [
+            self.__dataloader(self.train_dataset, shuffle=False),
+            self.__dataloader(self.val_dataset, shuffle=False),
+            self.__dataloader(self.test_dataset, shuffle=False)
+            ]

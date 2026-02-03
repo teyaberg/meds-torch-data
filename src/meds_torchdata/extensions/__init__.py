@@ -7,5 +7,4 @@ except ImportError:
 
 if _HAS_LIGHTNING:
     from .lightning_datamodule import Datamodule
-    from .lightning_datamodule_indexed import IndexedDatamodule
     from .lightning_datamodule_single_window import SingleDatamodule
